@@ -19,12 +19,12 @@ const MAX_READ_ATTEMPTS: u8 = 20;
 const VID: u16 = 0x0BDA;
 const PID: u16 = 0xFFE0;
 
-fn main() {
+fn get_battery_level() -> Option<u8> {
     let context = match Context::new() {
         Ok(c) => c,
         Err(e) => {
             eprintln!("Failed to create USB context: {}", e);
-            return;
+            return None;
         }
     };
     let device = match context.devices() {
@@ -34,7 +34,7 @@ fn main() {
         }),
         Err(e) => {
             eprintln!("Failed to enumerate devices: {}", e);
-            return;
+            return None;
         }
     };
 
@@ -42,7 +42,7 @@ fn main() {
         Some(d) => d,
         None => {
             eprintln!("Device {:#06x}:{:#06x} not found", VID, PID);
-            return;
+            return None;
         }
     };
 
@@ -52,7 +52,7 @@ fn main() {
         Ok(h) => h,
         Err(e) => {
             eprintln!("Failed to open device: {}", e);
-            return;
+            return None;
         }
     };
 
@@ -68,7 +68,7 @@ fn main() {
 
     if let Err(e) = handle.claim_interface(INTERFACE_NUMBER) {
         eprintln!("Failed to claim interface {}: {}", INTERFACE_NUMBER, e);
-        return;
+        return None;
     }
 
     let w_value: u16 = (REPORT_TYPE_OUTPUT << 8) | (REPORT_ID as u16);
@@ -88,11 +88,10 @@ fn main() {
         READ_TIMEOUT,
     ) {
         eprintln!("SET_REPORT failed: {}", e);
-        return;
+        return None;
     }
 
     let mut buf = [0u8; 64];
-    let mut battery_found = false;
 
     for attempt in 1..=MAX_READ_ATTEMPTS {
         match handle.read_interrupt(BATTERY_ENDPOINT, &mut buf, READ_TIMEOUT) {
@@ -101,8 +100,7 @@ fn main() {
                     if len > BATTERY_OFFSET {
                         let battery = buf[BATTERY_OFFSET];
                         println!("Battery level: {}%", battery);
-                        battery_found = true;
-                        break;
+                        return Some(battery);
                     } else {
                         eprintln!("Battery report too short: {} bytes", len);
                     }
@@ -118,11 +116,14 @@ fn main() {
         }
     }
 
-    if !battery_found {
-        eprintln!("Failed to retrieve battery level.");
-    }
+    eprintln!("Failed to retrieve battery level.");
 
     if let Err(e) = handle.release_interface(INTERFACE_NUMBER) {
         eprintln!("Failed to release interface: {}", e);
     }
+    return None;
+}
+
+fn main() {
+    println!("{:?}", get_battery_level());
 }
