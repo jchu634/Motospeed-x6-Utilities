@@ -26,7 +26,7 @@ const BATTERY_REPORT_ID: u8 = 0xB4;
 const BATTERY_OFFSET: usize = 20;
 
 const READ_TIMEOUT: Duration = Duration::from_millis(3000);
-const POLL_TIMEOUT: Duration = Duration::from_millis(60000);
+const POLL_TIMEOUT: Duration = Duration::from_mins(1);
 const MAX_READ_ATTEMPTS: u8 = 3;
 
 const VID: u16 = 0x0BDA;
