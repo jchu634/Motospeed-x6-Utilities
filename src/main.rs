@@ -10,6 +10,9 @@ enum Message {
     BatteryUpdate(i8),
 }
 
+// Include generated icon name static array
+include!(concat!(env!("OUT_DIR"), "/icon_names.rs"));
+
 const SET_REPORT_REQUEST_TYPE: u8 = 0x21; // host→device, class, interface
 const SET_REPORT_REQUEST: u8 = 0x09;
 const REPORT_TYPE_OUTPUT: u16 = 0x02;
@@ -56,7 +59,7 @@ fn get_battery_level() -> Option<u8> {
         }
     };
 
-    println!("Found device {:#06x}:{:#06x}", VID, PID);
+    // println!("Found device {:#06x}:{:#06x}", VID, PID);
 
     let handle = match device.open() {
         Ok(h) => h,
@@ -135,21 +138,9 @@ fn get_battery_level() -> Option<u8> {
 }
 
 fn main() {
-    // println!("{:?}", get_battery_level());
-    let mut tray = TrayItem::new(
-        "X6 Battery Util",
-        IconSource::Resource("name-of-icon-in-rc-file"),
-    )
-    .unwrap();
+    let mut tray = TrayItem::new("X6 Battery Util", IconSource::Resource("battery-00")).unwrap();
 
-    tray.add_label("X6 Battery Util").unwrap();
-
-    tray.add_menu_item("Hello", || {
-        println!("Hello!");
-    })
-    .unwrap();
-
-    tray.inner_mut().add_separator().unwrap();
+    tray.add_label("X6 Battery Utility").unwrap();
 
     let (tx, rx) = mpsc::sync_channel(1);
 
@@ -197,18 +188,26 @@ fn main() {
                 break;
             }
             Ok(Message::BatteryUpdate(level)) => {
-                println!("{}", level);
-                // update_tray_for_battery(&mut tray, level);
-            }
-            Ok(Message::Red) => {
-                println!("Red");
-                tray.set_icon(IconSource::Resource("another-name-from-rc-file"))
-                    .unwrap();
-            }
-            Ok(Message::Green) => {
-                println!("Green");
-                tray.set_icon(IconSource::Resource("name-of-icon-in-rc-file"))
-                    .unwrap()
+                if level >= 0 {
+                    let clamped = level.clamp(0, 99);
+
+                    // --- When charging icon variants are ready ---
+                    // let charging = is_charging();
+                    // let icon_name = if charging {
+                    //     format!("battery-{clamped:02}-charging")
+                    // } else {
+                    //     format!("battery-{clamped:02}")
+                    // };
+
+                    let icon_name = format!("battery-{clamped:02}");
+
+                    // Can replace this with a lookup if needed once the icon set is final.
+                    tray.set_icon(IconSource::Resource(Box::leak(icon_name.into_boxed_str())))
+                        .unwrap();
+                } else {
+                    // Assume that the device is not connected
+                    tray.set_icon(IconSource::Resource("battery-none")).unwrap();
+                }
             }
             _ => {}
         }
