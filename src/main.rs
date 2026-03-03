@@ -1,5 +1,14 @@
 use rusb::{Context, UsbContext};
+use std::sync::mpsc;
+use std::thread;
 use std::time::Duration;
+use tray_item::{IconSource, TrayItem};
+enum Message {
+    Quit,
+    Green,
+    Red,
+    BatteryUpdate(i8),
+}
 
 const SET_REPORT_REQUEST_TYPE: u8 = 0x21; // host→device, class, interface
 const SET_REPORT_REQUEST: u8 = 0x09;
@@ -14,7 +23,8 @@ const BATTERY_REPORT_ID: u8 = 0xB4;
 const BATTERY_OFFSET: usize = 20;
 
 const READ_TIMEOUT: Duration = Duration::from_millis(3000);
-const MAX_READ_ATTEMPTS: u8 = 20;
+const POLL_TIMEOUT: Duration = Duration::from_millis(60000);
+const MAX_READ_ATTEMPTS: u8 = 3;
 
 const VID: u16 = 0x0BDA;
 const PID: u16 = 0xFFE0;
@@ -125,5 +135,82 @@ fn get_battery_level() -> Option<u8> {
 }
 
 fn main() {
-    println!("{:?}", get_battery_level());
+    // println!("{:?}", get_battery_level());
+    let mut tray = TrayItem::new(
+        "X6 Battery Util",
+        IconSource::Resource("name-of-icon-in-rc-file"),
+    )
+    .unwrap();
+
+    tray.add_label("X6 Battery Util").unwrap();
+
+    tray.add_menu_item("Hello", || {
+        println!("Hello!");
+    })
+    .unwrap();
+
+    tray.inner_mut().add_separator().unwrap();
+
+    let (tx, rx) = mpsc::sync_channel(1);
+
+    let battery_tx = tx.clone();
+    thread::spawn(move || {
+        loop {
+            let battery_level = get_battery_level()
+                .map(|level| level as i8) // Convert u8 to i8
+                .unwrap_or(-1); // Use -1 for disconnected
+
+            if battery_tx
+                .send(Message::BatteryUpdate(battery_level))
+                .is_err()
+            {
+                break; // Main thread has closed
+            }
+            thread::sleep(POLL_TIMEOUT);
+        }
+    });
+
+    let red_tx = tx.clone();
+    tray.add_menu_item("Red", move || {
+        red_tx.send(Message::Red).unwrap();
+    })
+    .unwrap();
+
+    let green_tx = tx.clone();
+    tray.add_menu_item("Green", move || {
+        green_tx.send(Message::Green).unwrap();
+    })
+    .unwrap();
+
+    tray.inner_mut().add_separator().unwrap();
+
+    let quit_tx = tx.clone();
+    tray.add_menu_item("Quit", move || {
+        quit_tx.send(Message::Quit).unwrap();
+    })
+    .unwrap();
+
+    loop {
+        match rx.recv() {
+            Ok(Message::Quit) => {
+                println!("Quit");
+                break;
+            }
+            Ok(Message::BatteryUpdate(level)) => {
+                println!("{}", level);
+                // update_tray_for_battery(&mut tray, level);
+            }
+            Ok(Message::Red) => {
+                println!("Red");
+                tray.set_icon(IconSource::Resource("another-name-from-rc-file"))
+                    .unwrap();
+            }
+            Ok(Message::Green) => {
+                println!("Green");
+                tray.set_icon(IconSource::Resource("name-of-icon-in-rc-file"))
+                    .unwrap()
+            }
+            _ => {}
+        }
+    }
 }
