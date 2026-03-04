@@ -20,7 +20,7 @@ jobs:
       - name: Create release package
         run: |
           New-Item -ItemType Directory -Path package -Force
-          Copy-Item "target/release/<YOUR_BINARY_NAME>.exe" "package/"
+          Copy-Item "target/release/Motospeed-x6-Utilities.exe" "package/"
           Copy-Item "3rd Party Licenses" "package/" -Recurse
           Compress-Archive -Path "package/*" -DestinationPath "X6-Mouse-Utilities.zip"
 
