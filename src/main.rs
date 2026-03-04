@@ -32,6 +32,13 @@ const VID: u16 = 0x0BDA;
 const PID: [u16; 2] = [0xFFE0, 0xFFF1];
 const PLUGGED_PID: [u16; 1] = [0xFFF1];
 
+/// Gets Battery level from mouse
+///
+/// Return Values
+/// 0-100    Standard battery Level
+/// 128-228  Charging battery Level (Charge value is offset by 128)
+/// -1       Device not detected
+/// -2       Device is plugged in (Charge value is not reported properly)
 fn get_battery_level() -> i16 {
     let context = match Context::new() {
         Ok(c) => c,
@@ -59,6 +66,7 @@ fn get_battery_level() -> i16 {
             return -1;
         }
     };
+    // Plugged in Devices will not return the correct battery level
     if PLUGGED_PID.contains(&device.device_descriptor().unwrap().product_id()) {
         return -2;
     }
@@ -191,7 +199,7 @@ fn main() {
                         // Assume that the device is not connected
                         tray.set_icon(IconSource::Resource("battery-none")).unwrap();
                     }
-                    0..=99 => {
+                    0..=228 => {
                         let charging;
                         let clamped;
                         if level >= 128 {
