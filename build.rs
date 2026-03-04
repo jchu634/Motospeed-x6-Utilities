@@ -13,11 +13,11 @@ fn main() {
     // Battery Levels 00–99
     let levels: Vec<u8> = (0..=99).collect();
 
-    // 100 Total icons: (00–99) + 1 ("none")
+    // 202 Total icons: (00–99) + (00-99)(Charging) + 2 (Not Plugged in, Plugged in)
     writeln!(
         rs_file,
         "pub const ICON_NAMES: [&str; {}] = [",
-        levels.len() + 1 /* none */
+        levels.len() * 2 + 2
     )
     .unwrap();
 
@@ -31,15 +31,20 @@ fn main() {
         // Write to Rust const array
         writeln!(rs_file, "    \"{base}\",").unwrap();
 
-        // --- Charging variant (to be added soon) ---
-        // let base_chg = format!("{base}-charging");
-        // let icon_path_chg = format!("icons/{base}-charging.ico");
-        // writeln!(rc_file, "{base_chg} ICON \"{icon_path_chg}\"").unwrap();
-        // writeln!(rs_file, "    \"{base_chg}\",").unwrap();
+        let base_chg = format!("{base}-charging");
+        let icon_path_chg = format!("icons/{base}-charging.ico");
+        writeln!(rc_file, "{base_chg} ICON \"{icon_path_chg}\"").unwrap();
+        writeln!(rs_file, "    \"{base_chg}\",").unwrap();
     }
 
     writeln!(rc_file, "battery-none ICON \"icons/battery-none.ico\"").unwrap();
+    writeln!(
+        rc_file,
+        "battery-plugged ICON \"icons/battery-plugged.ico\""
+    )
+    .unwrap();
     writeln!(rs_file, "    \"battery-none\",").unwrap();
+    writeln!(rs_file, "    \"battery-plugged\",").unwrap();
 
     writeln!(rs_file, "];").unwrap();
 
