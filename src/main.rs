@@ -1,3 +1,4 @@
+#![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use rusb::{Context, UsbContext};
 use std::sync::mpsc;
 use std::thread;
