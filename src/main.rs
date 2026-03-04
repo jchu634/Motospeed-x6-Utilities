@@ -6,9 +6,7 @@ use std::time::Duration;
 use tray_item::{IconSource, TrayItem};
 enum Message {
     Quit,
-    Green,
-    Red,
-    BatteryUpdate(i8),
+    BatteryUpdate(i16),
 }
 
 // Include generated icon name static array
@@ -31,42 +29,45 @@ const POLL_TIMEOUT: Duration = Duration::from_mins(1);
 const MAX_READ_ATTEMPTS: u8 = 3;
 
 const VID: u16 = 0x0BDA;
-const PID: u16 = 0xFFE0;
+const PID: [u16; 2] = [0xFFE0, 0xFFF1];
+const PLUGGED_PID: [u16; 1] = [0xFFF1];
 
-fn get_battery_level() -> Option<u8> {
+fn get_battery_level() -> i16 {
     let context = match Context::new() {
         Ok(c) => c,
         Err(e) => {
             eprintln!("Failed to create USB context: {}", e);
-            return None;
+            return -1;
         }
     };
     let device = match context.devices() {
         Ok(list) => list.iter().find(|d| {
             let desc = d.device_descriptor().unwrap();
-            desc.vendor_id() == VID && desc.product_id() == PID
+            desc.vendor_id() == VID && PID.contains(&desc.product_id())
         }),
+
         Err(e) => {
             eprintln!("Failed to enumerate devices: {}", e);
-            return None;
+
+            return -1;
         }
     };
-
     let device = match device {
         Some(d) => d,
         None => {
-            eprintln!("Device {:#06x}:{:#06x} not found", VID, PID);
-            return None;
+            eprintln!("Device not found");
+            return -1;
         }
     };
-
-    // println!("Found device {:#06x}:{:#06x}", VID, PID);
+    if PLUGGED_PID.contains(&device.device_descriptor().unwrap().product_id()) {
+        return -2;
+    }
 
     let handle = match device.open() {
         Ok(h) => h,
         Err(e) => {
             eprintln!("Failed to open device: {}", e);
-            return None;
+            return -1;
         }
     };
 
@@ -82,7 +83,7 @@ fn get_battery_level() -> Option<u8> {
 
     if let Err(e) = handle.claim_interface(INTERFACE_NUMBER) {
         eprintln!("Failed to claim interface {}: {}", INTERFACE_NUMBER, e);
-        return None;
+        return -1;
     }
 
     let w_value: u16 = (REPORT_TYPE_OUTPUT << 8) | (REPORT_ID as u16);
@@ -102,7 +103,7 @@ fn get_battery_level() -> Option<u8> {
         READ_TIMEOUT,
     ) {
         eprintln!("SET_REPORT failed: {}", e);
-        return None;
+        return -1;
     }
 
     let mut buf = [0u8; 64];
@@ -114,7 +115,7 @@ fn get_battery_level() -> Option<u8> {
                     if len > BATTERY_OFFSET {
                         let battery = buf[BATTERY_OFFSET];
                         println!("Battery level: {}%", battery);
-                        return Some(battery);
+                        return battery as i16;
                     } else {
                         eprintln!("Battery report too short: {} bytes", len);
                     }
@@ -135,7 +136,7 @@ fn get_battery_level() -> Option<u8> {
     if let Err(e) = handle.release_interface(INTERFACE_NUMBER) {
         eprintln!("Failed to release interface: {}", e);
     }
-    return None;
+    return -1;
 }
 
 fn main() {
@@ -148,9 +149,7 @@ fn main() {
     let battery_tx = tx.clone();
     thread::spawn(move || {
         loop {
-            let battery_level = get_battery_level()
-                .map(|level| level as i8) // Convert u8 to i8
-                .unwrap_or(-1); // Use -1 for disconnected
+            let battery_level = get_battery_level();
 
             if battery_tx
                 .send(Message::BatteryUpdate(battery_level))
@@ -162,18 +161,6 @@ fn main() {
         }
     });
 
-    let red_tx = tx.clone();
-    tray.add_menu_item("Red", move || {
-        red_tx.send(Message::Red).unwrap();
-    })
-    .unwrap();
-
-    let green_tx = tx.clone();
-    tray.add_menu_item("Green", move || {
-        green_tx.send(Message::Green).unwrap();
-    })
-    .unwrap();
-
     tray.inner_mut().add_separator().unwrap();
 
     let quit_tx = tx.clone();
@@ -182,6 +169,11 @@ fn main() {
     })
     .unwrap();
 
+    let mut tooltip_text = String::from("Initializing...");
+    tray.inner_mut()
+        .set_tooltip(&tooltip_text)
+        .expect("Failed to set tray tooltip after battery update");
+
     loop {
         match rx.recv() {
             Ok(Message::Quit) => {
@@ -189,25 +181,47 @@ fn main() {
                 break;
             }
             Ok(Message::BatteryUpdate(level)) => {
-                if level >= 0 {
-                    let clamped = level.clamp(0, 99);
+                match level {
+                    -2 => {
+                        // Device is Plugged in (Battery reporting does not work)
+                        tray.set_icon(IconSource::Resource("battery-plugged"))
+                            .unwrap();
+                    }
+                    -1 => {
+                        // Assume that the device is not connected
+                        tray.set_icon(IconSource::Resource("battery-none")).unwrap();
+                    }
+                    0..=99 => {
+                        let charging;
+                        let clamped;
+                        if level >= 128 {
+                            charging = true;
+                            clamped = (level - 128).clamp(0, 99);
+                        } else {
+                            charging = false;
+                            clamped = level.clamp(0, 99);
+                        }
 
-                    // --- When charging icon variants are ready ---
-                    // let charging = is_charging();
-                    // let icon_name = if charging {
-                    //     format!("battery-{clamped:02}-charging")
-                    // } else {
-                    //     format!("battery-{clamped:02}")
-                    // };
+                        let idx = clamped as usize * 2 + if charging { 1 } else { 0 };
 
-                    let icon_name = format!("battery-{clamped:02}");
+                        // Fallback if index out of bounds (should never happen)
+                        let icon = *ICON_NAMES.get(idx).unwrap_or(&"battery-none");
 
-                    // Can replace this with a lookup if needed once the icon set is final.
-                    tray.set_icon(IconSource::Resource(Box::leak(icon_name.into_boxed_str())))
-                        .unwrap();
-                } else {
-                    // Assume that the device is not connected
-                    tray.set_icon(IconSource::Resource("battery-none")).unwrap();
+                        tray.set_icon(IconSource::Resource(icon)).unwrap();
+
+                        tooltip_text.clear();
+                        if level < 0 {
+                            tooltip_text.push_str("No battery detected");
+                        } else {
+                            use std::fmt::Write as _;
+                            // Write into the existing string so its memory stays the same.
+                            let _ = write!(tooltip_text, "Battery: {}%", level);
+                        }
+
+                        let tooltip_ref: &str = tooltip_text.as_str();
+                        tray.inner_mut().set_tooltip(tooltip_ref).unwrap();
+                    }
+                    _ => {}
                 }
             }
             _ => {}
