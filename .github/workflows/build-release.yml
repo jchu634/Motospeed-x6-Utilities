@@ -1,0 +1,31 @@
+name: Build and Package Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+jobs:
+  build:
+    name: Build and Package
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build release binary
+        run: cargo build --release
+
+      - name: Create release package
+        run: |
+          New-Item -ItemType Directory -Path package -Force
+          Copy-Item "target/release/<YOUR_BINARY_NAME>.exe" "package/"
+          Copy-Item "3rd Party Licenses" "package/" -Recurse
+          Compress-Archive -Path "package/*" -DestinationPath "X6-Mouse-Utilities.zip"
+
+      - name: Create draft release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: X6-Mouse-Utilities.zip
+          draft: true
