@@ -1,13 +1,10 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use rusb::{Context, UsbContext};
+use std::fs;
 use std::sync::mpsc;
 use std::thread;
 use std::time::Duration;
 use tray_item::{IconSource, TrayItem};
-enum Message {
-    Quit,
-    BatteryUpdate(i16),
-}
 
 // Include generated icon name static array
 include!(concat!(env!("OUT_DIR"), "/icon_names.rs"));
@@ -25,7 +22,6 @@ const BATTERY_REPORT_ID: u8 = 0xB4;
 const BATTERY_OFFSET: usize = 20;
 
 const READ_TIMEOUT: Duration = Duration::from_millis(3000);
-const POLL_TIMEOUT: Duration = Duration::from_mins(1);
 const MAX_READ_ATTEMPTS: u8 = 3;
 
 const VID: u16 = 0x0BDA;
@@ -55,7 +51,6 @@ fn get_battery_level() -> i16 {
 
         Err(e) => {
             eprintln!("Failed to enumerate devices: {}", e);
-
             return -1;
         }
     };
@@ -147,7 +142,49 @@ fn get_battery_level() -> i16 {
     return -1;
 }
 
+#[derive(Debug)]
+enum Config {
+    Duration(Duration),
+}
+
+fn read_config() -> Config {
+    let default = Config::Duration(Duration::from_secs(60));
+
+    let contents = match fs::read_to_string("config.txt") {
+        Ok(c) => c,
+        Err(_) => return default,
+    };
+
+    // Example file line: `duration_secs = 120`
+    for line in contents.lines() {
+        let line = line.trim();
+
+        if line.starts_with('#') || line.is_empty() {
+            continue; // skip comments and blank lines
+        }
+
+        if let Some(v) = line.strip_prefix("polltimeout =") {
+            if let Ok(secs) = v.trim().parse::<u64>() {
+                return Config::Duration(Duration::from_secs(secs));
+            }
+        }
+    }
+
+    default
+}
+
+enum Message {
+    Quit,
+    BatteryUpdate(i16),
+}
+
 fn main() {
+    let config = read_config();
+
+    let poll_timeout = match config {
+        Config::Duration(dur) => dur,
+    };
+
     let mut tray = TrayItem::new("X6 Battery Util", IconSource::Resource("battery-00")).unwrap();
 
     tray.add_label("X6 Battery Utility").unwrap();
@@ -165,7 +202,7 @@ fn main() {
             {
                 break; // Main thread has closed
             }
-            thread::sleep(POLL_TIMEOUT);
+            thread::sleep(poll_timeout);
         }
     });
 
