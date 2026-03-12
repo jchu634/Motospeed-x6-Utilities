@@ -11,15 +11,19 @@ import {
 } from "@hugeicons/core-free-icons"
 import { RgbColorPicker } from "react-colorful"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Slider } from "@/components/ui/slider"
+import { Input } from "@/components/ui/input"
 
-const rgbModes = ["off", "static", "breath", "cycle"]
 export function App() {
   const devicesRef = useRef<HIDDevice[] | null>(null)
   const browserSupported =
     typeof navigator !== "undefined" && typeof navigator.hid !== "undefined"
   const [deviceConnected, setDeviceConnected] = useState(false)
   const [colourMode, setColourMode] = useState("off")
-  const [colour, setColour] = useState({ r: 50, g: 100, b: 150 })
+  const [colour, setColour] = useState({ r: 50, g: 100, b: 150 }) //TODO Fetch current RGB
+  const [dpi, setDpi] = useState([1, 2, 3, 4, 5]) //TODO Fetch actual DPI
+  const [selectedDpi, setSelectedDPI] = useState(0)
+
   // TODO Remove once UI is complete
   // const [deviceConnected, setDeviceConnected] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -60,7 +64,9 @@ export function App() {
       devicesRef.current[2].sendReport(reportId, new Uint8Array(data))
     }
   }
-
+  const updateDPI = (index: number, newValue: number) => {
+    setDpi((prev) => prev.map((item, i) => (i === index ? newValue : item)))
+  }
   return (
     <div className="flex min-h-svh p-6">
       {browserSupported ? (
@@ -73,8 +79,76 @@ export function App() {
               {"Connect Device"}
             </Button>
           </div>
+          <Card className="flex h-fit w-100 flex-row items-center p-4">
+            <ToggleGroup
+              multiple={false}
+              variant="outline"
+              orientation="vertical"
+              defaultValue={[selectedDpi.toString()]}
+              className="min-w-20 text-left"
+              onValueChange={(value) => setSelectedDPI(parseInt(value[0]))}
+            >
+              <ToggleGroupItem
+                value={"0"}
+                aria-label="Toggle bold"
+                className="justify-start data-pressed:bg-primary"
+              >
+                1: {dpi[0]}
+              </ToggleGroupItem>
 
-          <Card className="h-fit p-4">
+              <ToggleGroupItem
+                value={"1"}
+                aria-label="Toggle italic"
+                className="justify-start data-pressed:bg-primary"
+              >
+                2: {dpi[1]}
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value={"2"}
+                aria-label="Toggle strikethrough"
+                className="justify-start data-pressed:bg-primary"
+              >
+                3: {dpi[2]}
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value={"3"}
+                aria-label="Toggle strikethrough"
+                className="justify-start data-pressed:bg-primary"
+              >
+                4: {dpi[3]}
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value={"4"}
+                aria-label="Toggle strikethrough"
+                className="justify-start data-pressed:bg-primary"
+              >
+                5: {dpi[4]}
+              </ToggleGroupItem>
+            </ToggleGroup>
+            <div className="flex w-full flex-col space-y-4">
+              <p>{dpi[selectedDpi]}</p>
+              <p>{dpi[selectedDpi]}</p>
+              <Input></Input>
+
+              <Slider
+                value={dpi[selectedDpi]}
+                onValueChange={(value) => updateDPI(selectedDpi, value)}
+                snapToMarks
+                showMarks
+                marks={[
+                  100, 2000, 4000, 6000, 8000, 10000, 12000, 14000, 16000,
+                  18000, 20000,
+
+                  22000, 24000, 26000,
+                ]}
+                max={26000}
+                min={100}
+                step={100}
+                className="mx-auto w-full max-w-xs"
+              />
+            </div>
+          </Card>
+          <Card className="h-fit w-fit p-4">
             <Button className="size-10">
               <HugeiconsIcon icon={PaintBrush04Icon} className="size-6" />
             </Button>
