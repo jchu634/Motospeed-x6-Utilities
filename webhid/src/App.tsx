@@ -12,7 +12,8 @@ import {
 import { RgbColorPicker } from "react-colorful"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Slider } from "@/components/ui/slider"
-import { Input } from "@/components/ui/input"
+import { NumberField } from "@/components/ui/number-field"
+import { Toggle } from "@/components/ui/toggle"
 
 export function App() {
   const devicesRef = useRef<HIDDevice[] | null>(null)
@@ -22,7 +23,14 @@ export function App() {
   const [colourMode, setColourMode] = useState("off")
   const [colour, setColour] = useState({ r: 50, g: 100, b: 150 }) //TODO Fetch current RGB
   const [dpi, setDpi] = useState([1, 2, 3, 4, 5]) //TODO Fetch actual DPI
+  const [pollRate, setPollRate] = useState(1000) //TODO Fetch actual DPI
   const [selectedDpi, setSelectedDPI] = useState(0)
+  const [liftOffLow, setLiftOffLow] = useState(true)
+  const [esports, setEsports] = useState(false)
+  const [sensorPerf, setSensorPerf] = useState([true, true, false])
+  const [scrollDirectionForward, setScrollDirectionForward] = useState(true)
+  const [debounce, setDebounce] = useState(5)
+  const [sleepTime, setSleepTime] = useState(1)
 
   // TODO Remove once UI is complete
   // const [deviceConnected, setDeviceConnected] = useState(true)
@@ -126,9 +134,15 @@ export function App() {
               </ToggleGroupItem>
             </ToggleGroup>
             <div className="flex w-full flex-col space-y-4">
-              <p>{dpi[selectedDpi]}</p>
-              <p>{dpi[selectedDpi]}</p>
-              <Input></Input>
+              <NumberField
+                step={100}
+                defaultValue={100}
+                value={dpi[selectedDpi]}
+                min={100}
+                max={26000}
+                snapOnStep={true}
+                onValueChange={(value) => updateDPI(selectedDpi, value || 100)}
+              />
 
               <Slider
                 value={dpi[selectedDpi]}
@@ -148,6 +162,61 @@ export function App() {
               />
             </div>
           </Card>
+          <Card className="flex h-fit w-100 flex-col items-center p-4">
+            Polling Rate
+            <ToggleGroup
+              multiple={false}
+              variant="outline"
+              spacing={2}
+              defaultValue={[pollRate.toString()]}
+              className="min-w-20 text-left"
+              onValueChange={(value) => setPollRate(parseInt(value[0]))}
+            >
+              <ToggleGroupItem
+                value={"125"}
+                aria-label="Toggle bold"
+                className="justify-start data-pressed:bg-primary"
+              >
+                125hz
+              </ToggleGroupItem>
+
+              <ToggleGroupItem
+                value={"500"}
+                aria-label="Toggle italic"
+                className="justify-start data-pressed:bg-primary"
+              >
+                500hz
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value={"1000"}
+                aria-label="Toggle strikethrough"
+                className="justify-start data-pressed:bg-primary"
+              >
+                1000hz
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value={"2000"}
+                aria-label="Toggle strikethrough"
+                className="justify-start data-pressed:bg-primary"
+              >
+                2000hz
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value={"4000"}
+                aria-label="Toggle strikethrough"
+                className="justify-start data-pressed:bg-primary"
+              >
+                4000hz
+              </ToggleGroupItem>
+              <ToggleGroupItem
+                value={"8000"}
+                aria-label="Toggle strikethrough"
+                className="justify-start data-pressed:bg-primary"
+              >
+                8000hz
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </Card>
           <Card className="h-fit w-fit p-4">
             <Button className="size-10">
               <HugeiconsIcon icon={PaintBrush04Icon} className="size-6" />
@@ -156,6 +225,7 @@ export function App() {
               multiple={false}
               variant="outline"
               // value={rgbModes}
+              defaultValue={[colourMode]}
               onValueChange={(value) => setColourMode(value[0])}
             >
               <ToggleGroupItem
@@ -205,6 +275,64 @@ export function App() {
 
             {error && <p style={{ color: "red" }}>{error}</p>}
           </Card>
+          <Card className="h-fit w-fit p-4">
+            Settings
+            <div className="flex w-60 items-center justify-between">
+              <p>Lift Off Distance</p>
+              <Toggle
+                pressed={liftOffLow}
+                variant="outline"
+                onPressedChange={(value) => setLiftOffLow(value)}
+                className="w-25 cursor-pointer hover:bg-primary"
+              >
+                {liftOffLow ? <>Low</> : <>High</>}
+              </Toggle>
+            </div>
+            <div className="flex w-60 items-center justify-between">
+              <p>Esports Mode</p>
+              <Toggle
+                pressed={esports}
+                variant="outline"
+                onPressedChange={(value) => setEsports(value)}
+                className="w-25 cursor-pointer hover:bg-primary"
+              >
+                {esports ? <>On</> : <>Off</>}
+              </Toggle>
+            </div>
+            <div className="flex w-60 items-center justify-between">
+              <p>Scroll Direction</p>
+              <Toggle
+                pressed={scrollDirectionForward}
+                variant="outline"
+                onPressedChange={(value) => setScrollDirectionForward(value)}
+                className="w-25 cursor-pointer hover:bg-primary"
+              >
+                {scrollDirectionForward ? <>Forward</> : <>Backwards</>}
+              </Toggle>
+            </div>
+            <div className="flex w-60 items-center justify-between">
+              <p>Debounce (ms)</p>
+              <NumberField
+                className="w-25"
+                value={debounce}
+                min={0}
+                max={20}
+                onValueChange={(value) => setDebounce(value || debounce)}
+              />
+            </div>
+            <div className="flex w-60 items-center justify-between">
+              <p>Sleep Time (mins)</p>
+              <NumberField
+                className="w-25"
+                value={sleepTime}
+                min={1}
+                max={60}
+                onValueChange={(value) => setSleepTime(value || sleepTime)}
+              />
+            </div>
+            const [sensorPerf, setSensorPErf] = useState([true, true, false])
+          </Card>
+
           <Button
             className="w-fit p-4 text-lg"
             onClick={() => sendReport(0xb3, [0x00])}
