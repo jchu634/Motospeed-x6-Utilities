@@ -27,7 +27,7 @@ export function App() {
   const [selectedDpi, setSelectedDPI] = useState(0)
   const [liftOffLow, setLiftOffLow] = useState(true)
   const [esports, setEsports] = useState(false)
-  const [sensorPerf, setSensorPerf] = useState([true, true, false])
+  const [sensorPerf, setSensorPerf] = useState([true, true, false]) //ripple, angle snap, motion sync
   const [scrollDirectionForward, setScrollDirectionForward] = useState(true)
   const [debounce, setDebounce] = useState(5)
   const [sleepTime, setSleepTime] = useState(1)
@@ -310,6 +310,47 @@ export function App() {
                 {scrollDirectionForward ? <>Forward</> : <>Backwards</>}
               </Toggle>
             </div>
+            <div className="flex w-108 items-center justify-between">
+              <p>Sensor Performance</p>
+              <div className="flex flex-row space-x-4">
+                <Toggle
+                  pressed={sensorPerf[0]}
+                  variant="outline"
+                  onPressedChange={(value) =>
+                    setSensorPerf((prev) =>
+                      prev.map((item, i) => (i === 0 ? value : item))
+                    )
+                  }
+                  className="w-15 cursor-pointer hover:bg-primary"
+                >
+                  Ripple
+                </Toggle>
+                <Toggle
+                  pressed={sensorPerf[1]}
+                  variant="outline"
+                  onPressedChange={(value) =>
+                    setSensorPerf((prev) =>
+                      prev.map((item, i) => (i === 1 ? value : item))
+                    )
+                  }
+                  className="w-25 cursor-pointer hover:bg-primary"
+                >
+                  Angle Snap
+                </Toggle>
+                <Toggle
+                  pressed={sensorPerf[2]}
+                  variant="outline"
+                  onPressedChange={(value) =>
+                    setSensorPerf((prev) =>
+                      prev.map((item, i) => (i === 2 ? value : item))
+                    )
+                  }
+                  className="w-25 cursor-pointer hover:bg-primary"
+                >
+                  Motion Sync{" "}
+                </Toggle>
+              </div>
+            </div>
             <div className="flex w-60 items-center justify-between">
               <p>Debounce (ms)</p>
               <NumberField
@@ -330,7 +371,6 @@ export function App() {
                 onValueChange={(value) => setSleepTime(value || sleepTime)}
               />
             </div>
-            const [sensorPerf, setSensorPErf] = useState([true, true, false])
           </Card>
 
           <Button
