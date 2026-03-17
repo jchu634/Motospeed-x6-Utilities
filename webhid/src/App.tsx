@@ -9,11 +9,13 @@ import {
   FastWindIcon,
   ArrowReloadHorizontalIcon,
 } from "@hugeicons/core-free-icons"
+
 import { RgbColorPicker } from "react-colorful"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Slider } from "@/components/ui/slider"
 import { NumberField } from "@/components/ui/number-field"
 import { Toggle } from "@/components/ui/toggle"
+import MouseSVG from "@/components/mouse"
 
 export function App() {
   const devicesRef = useRef<HIDDevice[] | null>(null)
@@ -87,298 +89,328 @@ export function App() {
               {"Connect Device"}
             </Button>
           </div>
-          <Card className="flex h-fit w-100 flex-row items-center p-4">
-            <ToggleGroup
-              multiple={false}
-              variant="outline"
-              orientation="vertical"
-              defaultValue={[selectedDpi.toString()]}
-              className="min-w-20 text-left"
-              onValueChange={(value) => setSelectedDPI(parseInt(value[0]))}
-            >
-              <ToggleGroupItem
-                value={"0"}
-                aria-label="Toggle bold"
-                className="justify-start data-pressed:bg-primary"
-              >
-                1: {dpi[0]}
-              </ToggleGroupItem>
+          <div className="flex max-w-400 justify-between">
+            <MouseSVG />
+            <div className="space-y-4">
+              <div className="flex h-fit space-x-4">
+                <div className="space-y-4">
+                  <Card className="flex h-fit w-100 flex-row items-center p-4">
+                    <div className="flex w-full flex-col space-y-4">
+                      <p>DPI Sensitivity</p>
+                      <NumberField
+                        step={100}
+                        defaultValue={100}
+                        value={dpi[selectedDpi]}
+                        min={100}
+                        max={26000}
+                        snapOnStep={true}
+                        onValueChange={(value) =>
+                          updateDPI(selectedDpi, value || 100)
+                        }
+                      />
 
-              <ToggleGroupItem
-                value={"1"}
-                aria-label="Toggle italic"
-                className="justify-start data-pressed:bg-primary"
-              >
-                2: {dpi[1]}
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value={"2"}
-                aria-label="Toggle strikethrough"
-                className="justify-start data-pressed:bg-primary"
-              >
-                3: {dpi[2]}
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value={"3"}
-                aria-label="Toggle strikethrough"
-                className="justify-start data-pressed:bg-primary"
-              >
-                4: {dpi[3]}
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value={"4"}
-                aria-label="Toggle strikethrough"
-                className="justify-start data-pressed:bg-primary"
-              >
-                5: {dpi[4]}
-              </ToggleGroupItem>
-            </ToggleGroup>
-            <div className="flex w-full flex-col space-y-4">
-              <NumberField
-                step={100}
-                defaultValue={100}
-                value={dpi[selectedDpi]}
-                min={100}
-                max={26000}
-                snapOnStep={true}
-                onValueChange={(value) => updateDPI(selectedDpi, value || 100)}
-              />
+                      <Slider
+                        value={dpi[selectedDpi]}
+                        onValueChange={(value) => updateDPI(selectedDpi, value)}
+                        snapToMarks
+                        showMarks
+                        marks={[
+                          100, 2000, 4000, 6000, 8000, 10000, 12000, 14000,
+                          16000, 18000, 20000,
 
-              <Slider
-                value={dpi[selectedDpi]}
-                onValueChange={(value) => updateDPI(selectedDpi, value)}
-                snapToMarks
-                showMarks
-                marks={[
-                  100, 2000, 4000, 6000, 8000, 10000, 12000, 14000, 16000,
-                  18000, 20000,
+                          22000, 24000, 26000,
+                        ]}
+                        max={26000}
+                        min={100}
+                        step={100}
+                        className="mx-auto w-full max-w-xs"
+                      />
+                    </div>
+                    <ToggleGroup
+                      multiple={false}
+                      variant="outline"
+                      orientation="vertical"
+                      defaultValue={[selectedDpi.toString()]}
+                      className="min-w-20 text-left"
+                      onValueChange={(value) =>
+                        setSelectedDPI(parseInt(value[0]))
+                      }
+                    >
+                      <ToggleGroupItem
+                        value={"0"}
+                        aria-label="Toggle bold"
+                        className="justify-start data-pressed:bg-primary"
+                      >
+                        1: {dpi[0]}
+                      </ToggleGroupItem>
 
-                  22000, 24000, 26000,
-                ]}
-                max={26000}
-                min={100}
-                step={100}
-                className="mx-auto w-full max-w-xs"
-              />
-            </div>
-          </Card>
-          <Card className="flex h-fit w-100 flex-col items-center p-4">
-            Polling Rate
-            <ToggleGroup
-              multiple={false}
-              variant="outline"
-              spacing={2}
-              defaultValue={[pollRate.toString()]}
-              className="min-w-20 text-left"
-              onValueChange={(value) => setPollRate(parseInt(value[0]))}
-            >
-              <ToggleGroupItem
-                value={"125"}
-                aria-label="Toggle bold"
-                className="justify-start data-pressed:bg-primary"
-              >
-                125hz
-              </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value={"1"}
+                        aria-label="Toggle italic"
+                        className="justify-start data-pressed:bg-primary"
+                      >
+                        2: {dpi[1]}
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value={"2"}
+                        aria-label="Toggle strikethrough"
+                        className="justify-start data-pressed:bg-primary"
+                      >
+                        3: {dpi[2]}
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value={"3"}
+                        aria-label="Toggle strikethrough"
+                        className="justify-start data-pressed:bg-primary"
+                      >
+                        4: {dpi[3]}
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value={"4"}
+                        aria-label="Toggle strikethrough"
+                        className="justify-start data-pressed:bg-primary"
+                      >
+                        5: {dpi[4]}
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </Card>
+                  <Card className="flex h-fit w-100 flex-col p-4">
+                    <p>Polling Rate</p>
+                    <ToggleGroup
+                      multiple={false}
+                      variant="outline"
+                      spacing={2}
+                      defaultValue={[pollRate.toString()]}
+                      className="flex flex-col"
+                      onValueChange={(value) => setPollRate(parseInt(value[0]))}
+                    >
+                      <div className="flex w-50 justify-between space-x-2">
+                        <ToggleGroupItem
+                          value={"125"}
+                          aria-label="Toggle bold"
+                          className="w-16 data-pressed:bg-primary"
+                        >
+                          125hz
+                        </ToggleGroupItem>
 
-              <ToggleGroupItem
-                value={"500"}
-                aria-label="Toggle italic"
-                className="justify-start data-pressed:bg-primary"
-              >
-                500hz
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value={"1000"}
-                aria-label="Toggle strikethrough"
-                className="justify-start data-pressed:bg-primary"
-              >
-                1000hz
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value={"2000"}
-                aria-label="Toggle strikethrough"
-                className="justify-start data-pressed:bg-primary"
-              >
-                2000hz
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value={"4000"}
-                aria-label="Toggle strikethrough"
-                className="justify-start data-pressed:bg-primary"
-              >
-                4000hz
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value={"8000"}
-                aria-label="Toggle strikethrough"
-                className="justify-start data-pressed:bg-primary"
-              >
-                8000hz
-              </ToggleGroupItem>
-            </ToggleGroup>
-          </Card>
-          <Card className="h-fit w-fit p-4">
-            <Button className="size-10">
-              <HugeiconsIcon icon={PaintBrush04Icon} className="size-6" />
-            </Button>
-            <ToggleGroup
-              multiple={false}
-              variant="outline"
-              // value={rgbModes}
-              defaultValue={[colourMode]}
-              onValueChange={(value) => setColourMode(value[0])}
-            >
-              <ToggleGroupItem
-                value="off"
-                aria-label="Toggle bold"
-                className="data-pressed:bg-primary"
-              >
-                <HugeiconsIcon icon={LightbulbOffIcon} className="size-6" />
-              </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value={"500"}
+                          aria-label="Toggle italic"
+                          className="w-16 data-pressed:bg-primary"
+                        >
+                          500hz
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value={"1000"}
+                          aria-label="Toggle strikethrough"
+                          className="w-16 data-pressed:bg-primary"
+                        >
+                          1000hz
+                        </ToggleGroupItem>
+                      </div>
+                      <div className="flex w-50 justify-between space-x-2">
+                        <ToggleGroupItem
+                          value={"2000"}
+                          aria-label="Toggle strikethrough"
+                          className="w-16 data-pressed:bg-primary"
+                        >
+                          2000hz
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value={"4000"}
+                          aria-label="Toggle strikethrough"
+                          className="w-16 data-pressed:bg-primary"
+                        >
+                          4000hz
+                        </ToggleGroupItem>
+                        <ToggleGroupItem
+                          value={"8000"}
+                          aria-label="Toggle strikethrough"
+                          className="w-16 data-pressed:bg-primary"
+                        >
+                          8000hz
+                        </ToggleGroupItem>
+                      </div>
+                    </ToggleGroup>
+                  </Card>
+                </div>
+                <Card className="h-87 w-fit p-4">
+                  <Button className="size-10">
+                    <HugeiconsIcon icon={PaintBrush04Icon} className="size-6" />
+                  </Button>
+                  <ToggleGroup
+                    multiple={false}
+                    variant="outline"
+                    // value={rgbModes}
+                    defaultValue={[colourMode]}
+                    onValueChange={(value) => setColourMode(value[0])}
+                  >
+                    <ToggleGroupItem
+                      value="off"
+                      aria-label="Toggle bold"
+                      className="data-pressed:bg-primary"
+                    >
+                      <HugeiconsIcon
+                        icon={LightbulbOffIcon}
+                        className="size-6"
+                      />
+                    </ToggleGroupItem>
 
-              <ToggleGroupItem
-                value="static"
-                aria-label="Toggle italic"
-                className="data-pressed:bg-primary"
-              >
-                <HugeiconsIcon icon={Idea01Icon} className="size-6" />
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="breath"
-                aria-label="Toggle strikethrough"
-                className="data-pressed:bg-primary"
-              >
-                <HugeiconsIcon icon={FastWindIcon} className="size-6" />
-              </ToggleGroupItem>
-              <ToggleGroupItem
-                value="cycle"
-                aria-label="Toggle strikethrough"
-                className="data-pressed:bg-primary"
-              >
-                <HugeiconsIcon
-                  icon={ArrowReloadHorizontalIcon}
-                  className="size-6"
-                />
-              </ToggleGroupItem>
-            </ToggleGroup>
+                    <ToggleGroupItem
+                      value="static"
+                      aria-label="Toggle italic"
+                      className="data-pressed:bg-primary"
+                    >
+                      <HugeiconsIcon icon={Idea01Icon} className="size-6" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="breath"
+                      aria-label="Toggle strikethrough"
+                      className="data-pressed:bg-primary"
+                    >
+                      <HugeiconsIcon icon={FastWindIcon} className="size-6" />
+                    </ToggleGroupItem>
+                    <ToggleGroupItem
+                      value="cycle"
+                      aria-label="Toggle strikethrough"
+                      className="data-pressed:bg-primary"
+                    >
+                      <HugeiconsIcon
+                        icon={ArrowReloadHorizontalIcon}
+                        className="size-6"
+                      />
+                    </ToggleGroupItem>
+                  </ToggleGroup>
 
-            <RgbColorPicker
-              className={
-                colourMode != "off" ? "" : "pointer-events-none opacity-40"
-              }
-              color={colour}
-              onChange={(colour) => {
-                setColour({ r: colour.r, g: colour.g, b: colour.b })
-                // sendReport(0xb3, [0x00])
-              }}
-            />
+                  <RgbColorPicker
+                    className={
+                      colourMode != "off"
+                        ? ""
+                        : "pointer-events-none opacity-40"
+                    }
+                    color={colour}
+                    onChange={(colour) => {
+                      setColour({ r: colour.r, g: colour.g, b: colour.b })
+                      // sendReport(0xb3, [0x00])
+                    }}
+                  />
 
-            {error && <p style={{ color: "red" }}>{error}</p>}
-          </Card>
-          <Card className="h-fit w-fit p-4">
-            Settings
-            <div className="flex w-60 items-center justify-between">
-              <p>Lift Off Distance</p>
-              <Toggle
-                pressed={liftOffLow}
-                variant="outline"
-                onPressedChange={(value) => setLiftOffLow(value)}
-                className="w-25 cursor-pointer hover:bg-primary"
-              >
-                {liftOffLow ? <>Low</> : <>High</>}
-              </Toggle>
-            </div>
-            <div className="flex w-60 items-center justify-between">
-              <p>Esports Mode</p>
-              <Toggle
-                pressed={esports}
-                variant="outline"
-                onPressedChange={(value) => setEsports(value)}
-                className="w-25 cursor-pointer hover:bg-primary"
-              >
-                {esports ? <>On</> : <>Off</>}
-              </Toggle>
-            </div>
-            <div className="flex w-60 items-center justify-between">
-              <p>Scroll Direction</p>
-              <Toggle
-                pressed={scrollDirectionForward}
-                variant="outline"
-                onPressedChange={(value) => setScrollDirectionForward(value)}
-                className="w-25 cursor-pointer hover:bg-primary"
-              >
-                {scrollDirectionForward ? <>Forward</> : <>Backwards</>}
-              </Toggle>
-            </div>
-            <div className="flex w-108 items-center justify-between">
-              <p>Sensor Performance</p>
-              <div className="flex flex-row space-x-4">
-                <Toggle
-                  pressed={sensorPerf[0]}
-                  variant="outline"
-                  onPressedChange={(value) =>
-                    setSensorPerf((prev) =>
-                      prev.map((item, i) => (i === 0 ? value : item))
-                    )
-                  }
-                  className="w-15 cursor-pointer hover:bg-primary"
-                >
-                  Ripple
-                </Toggle>
-                <Toggle
-                  pressed={sensorPerf[1]}
-                  variant="outline"
-                  onPressedChange={(value) =>
-                    setSensorPerf((prev) =>
-                      prev.map((item, i) => (i === 1 ? value : item))
-                    )
-                  }
-                  className="w-25 cursor-pointer hover:bg-primary"
-                >
-                  Angle Snap
-                </Toggle>
-                <Toggle
-                  pressed={sensorPerf[2]}
-                  variant="outline"
-                  onPressedChange={(value) =>
-                    setSensorPerf((prev) =>
-                      prev.map((item, i) => (i === 2 ? value : item))
-                    )
-                  }
-                  className="w-25 cursor-pointer hover:bg-primary"
-                >
-                  Motion Sync{" "}
-                </Toggle>
+                  {error && <p style={{ color: "red" }}>{error}</p>}
+                </Card>
               </div>
-            </div>
-            <div className="flex w-60 items-center justify-between">
-              <p>Debounce (ms)</p>
-              <NumberField
-                className="w-25"
-                value={debounce}
-                min={0}
-                max={20}
-                onValueChange={(value) => setDebounce(value || debounce)}
-              />
-            </div>
-            <div className="flex w-60 items-center justify-between">
-              <p>Sleep Time (mins)</p>
-              <NumberField
-                className="w-25"
-                value={sleepTime}
-                min={1}
-                max={60}
-                onValueChange={(value) => setSleepTime(value || sleepTime)}
-              />
-            </div>
-          </Card>
 
-          <Button
-            className="w-fit p-4 text-lg"
-            onClick={() => sendReport(0xb3, [0x00])}
-          >
-            Send Report
-          </Button>
+              <Card className="h-fit w-full p-4">
+                Settings
+                <div className="flex w-60 items-center justify-between">
+                  <p>Lift Off Distance</p>
+                  <Toggle
+                    pressed={liftOffLow}
+                    variant="outline"
+                    onPressedChange={(value) => setLiftOffLow(value)}
+                    className="w-25 cursor-pointer hover:bg-primary"
+                  >
+                    {liftOffLow ? <>Low</> : <>High</>}
+                  </Toggle>
+                </div>
+                <div className="flex w-60 items-center justify-between">
+                  <p>Esports Mode</p>
+                  <Toggle
+                    pressed={esports}
+                    variant="outline"
+                    onPressedChange={(value) => setEsports(value)}
+                    className="w-25 cursor-pointer hover:bg-primary"
+                  >
+                    {esports ? <>On</> : <>Off</>}
+                  </Toggle>
+                </div>
+                <div className="flex w-60 items-center justify-between">
+                  <p>Scroll Direction</p>
+                  <Toggle
+                    pressed={scrollDirectionForward}
+                    variant="outline"
+                    onPressedChange={(value) =>
+                      setScrollDirectionForward(value)
+                    }
+                    className="w-25 cursor-pointer hover:bg-primary"
+                  >
+                    {scrollDirectionForward ? <>Forward</> : <>Backwards</>}
+                  </Toggle>
+                </div>
+                <div className="flex w-118 items-center justify-between">
+                  <p>Sensor Performance</p>
+                  <div className="flex flex-row space-x-4">
+                    <Toggle
+                      pressed={sensorPerf[0]}
+                      variant="outline"
+                      onPressedChange={(value) =>
+                        setSensorPerf((prev) =>
+                          prev.map((item, i) => (i === 0 ? value : item))
+                        )
+                      }
+                      className="w-25 cursor-pointer hover:bg-primary"
+                    >
+                      Ripple
+                    </Toggle>
+                    <Toggle
+                      pressed={sensorPerf[1]}
+                      variant="outline"
+                      onPressedChange={(value) =>
+                        setSensorPerf((prev) =>
+                          prev.map((item, i) => (i === 1 ? value : item))
+                        )
+                      }
+                      className="w-25 cursor-pointer hover:bg-primary"
+                    >
+                      Angle Snap
+                    </Toggle>
+                    <Toggle
+                      pressed={sensorPerf[2]}
+                      variant="outline"
+                      onPressedChange={(value) =>
+                        setSensorPerf((prev) =>
+                          prev.map((item, i) => (i === 2 ? value : item))
+                        )
+                      }
+                      className="w-25 cursor-pointer hover:bg-primary"
+                    >
+                      Motion Sync{" "}
+                    </Toggle>
+                  </div>
+                </div>
+                <div className="flex w-60 items-center justify-between">
+                  <p>Debounce (ms)</p>
+                  <NumberField
+                    className="w-25"
+                    value={debounce}
+                    min={0}
+                    max={20}
+                    onValueChange={(value) => setDebounce(value || debounce)}
+                  />
+                </div>
+                <div className="flex w-60 items-center justify-between">
+                  <p>Sleep Time (mins)</p>
+                  <NumberField
+                    className="w-25"
+                    value={sleepTime}
+                    min={1}
+                    max={60}
+                    onValueChange={(value) => setSleepTime(value || sleepTime)}
+                  />
+                </div>
+              </Card>
+              <Card className="p-4">
+                Macro Functionality Coming Soon... (Its a lot of work I don't
+                wanna do.)
+              </Card>
+
+              <Button
+                className="w-fit p-4 text-lg"
+                onClick={() => sendReport(0xb3, [0x00])}
+              >
+                Send Report
+              </Button>
+            </div>
+          </div>
         </div>
       ) : (
         <div>
