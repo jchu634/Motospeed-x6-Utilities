@@ -9,6 +9,7 @@ Cross-platform system tray application which shows the battery level, (polled ev
 ### WebHID configurator
 Cross-platform webHID configuration site that lets you modify your mouse settings.
 - Note does not support key remapping and macros yet.
+- Available at [(http://x6-utility.keshuac.com/)](http://x6-utility.keshuac.com)
 
 ### License
 These tools are MIT Licensed.
