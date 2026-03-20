@@ -6,6 +6,10 @@ Cross-platform system tray application which shows the battery level, (polled ev
 - Note, has only been tested on Windows.
 - I do not have any devices to test Linux + MacOS, but I don't see any reason why it shouldn't work.
 
+### WebHID configurator
+Cross-platform webHID configuration site that lets you modify your mouse settings.
+- Note does not support key remapping and macros yet.
+
 ### License
 These tools are MIT Licensed.
 
