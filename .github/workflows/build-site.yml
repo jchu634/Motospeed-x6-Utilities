@@ -1,0 +1,48 @@
+name: Deploy to Github Pages
+
+on: workflow_dispatch
+working-directory: ./webhid
+
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build project
+        run: pnpm run build
+
+      - name: Upload static files as artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: ./dist
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write # to deploy to Pages
+      id-token: write # to verify the deployment originates from an appropriate source
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4 # or specific "vX.X.X" version tag for this action
