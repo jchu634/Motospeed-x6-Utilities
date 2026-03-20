@@ -10,12 +10,44 @@ import {
   ArrowReloadHorizontalIcon,
 } from "@hugeicons/core-free-icons"
 
-import { RgbColorPicker } from "react-colorful"
+import { RgbColorPicker, HexColorInput } from "react-colorful"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Slider } from "@/components/ui/slider"
 import { NumberField } from "@/components/ui/number-field"
 import { Toggle } from "@/components/ui/toggle"
 import MouseSVG from "@/components/mouse"
+import { cn } from "@/lib/utils"
+
+function HexToRGB(hex: string): { r: number; g: number; b: number } {
+  const bigint = parseInt(hex.slice(1), 16)
+  const r = (bigint >> 16) & 255
+  const g = (bigint >> 8) & 255
+  const b = bigint & 255
+  return { r, g, b }
+}
+function RGBToHex(r: number, g: number, b: number): string {
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
+}
+
+function dataViewToHexString(view: DataView) {
+  const bytes = new Uint8Array(view.buffer, view.byteOffset, view.byteLength)
+  return Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(" ")
+}
+function dataViewToHex(view: DataView) {
+  const bytes = new Uint8Array(view.buffer, view.byteOffset, view.byteLength)
+  return bytes
+}
+
+function toLittleEndian16Arr(values: number[]): number[] {
+  return values.flatMap((value) => {
+    const v = Math.max(0, Math.min(0xffff, value)) // clamp to uint16
+    return [v & 0xff, (v >> 8) & 0xff]
+  })
+}
+function toLittleEndian16(value: number): number[] {
+  const v = Math.max(0, Math.min(0xffff, value)) // clamp to uint16
+  return [v & 0xff, (v >> 8) & 0xff]
+}
 
 export function App() {
   const devicesRef = useRef<HIDDevice[] | null>(null)
@@ -34,9 +66,91 @@ export function App() {
   const [debounce, setDebounce] = useState(5)
   const [sleepTime, setSleepTime] = useState(1)
 
-  // TODO Remove once UI is complete
-  // const [deviceConnected, setDeviceConnected] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  async function getData(devices: HIDDevice[]) {
+    const rootDevice = devices[0]
+
+    try {
+      await rootDevice.open()
+      console.log(devices)
+
+      const startInputCollector = (device: HIDDevice, timeoutMs = 2000) => {
+        const pending: Array<{
+          resolve: (event: HIDInputReportEvent) => void
+          reject: (reason?: unknown) => void
+          timeoutId: ReturnType<typeof setTimeout>
+        }> = []
+
+        const onInputReport = (event: HIDInputReportEvent) => {
+          const next = pending.shift()
+          if (!next) return
+          clearTimeout(next.timeoutId)
+          next.resolve(event)
+        }
+
+        device.addEventListener("inputreport", onInputReport as EventListener)
+
+        const requestNext = () =>
+          new Promise<HIDInputReportEvent>((resolve, reject) => {
+            const timeoutId = setTimeout(() => {
+              const idx = pending.findIndex((p) => p.resolve === resolve)
+              if (idx >= 0) pending.splice(idx, 1)
+              reject(new Error("Timed out waiting for input report"))
+            }, timeoutMs)
+
+            pending.push({ resolve, reject, timeoutId })
+          })
+
+        const stop = () => {
+          device.removeEventListener(
+            "inputreport",
+            onInputReport as EventListener
+          )
+          while (pending.length) {
+            const p = pending.shift()!
+            clearTimeout(p.timeoutId)
+            p.reject(new Error("Input collector stopped"))
+          }
+        }
+
+        return { requestNext, stop }
+      }
+
+      const collector = startInputCollector(rootDevice, 2000)
+
+      try {
+        // DPI
+        let sendData64 = new Uint8Array(60)
+        sendData64[0] = 0x06
+        const dpiPromise = collector.requestNext()
+        await rootDevice.sendReport(0xb3, sendData64)
+        const dpiReport = await dpiPromise
+
+        const dpiData = dataViewToHex(dpiReport.data)
+        const dpi: number[] = []
+        for (let iter = 5; iter <= 13; iter += 2) {
+          dpi.push(dpiData[iter] | (dpiData[iter + 1] << 8))
+        }
+        setDpi(dpi)
+        setSelectedDPI(dpiData[4])
+        setPollRate(dpiData[2] >> 4)
+
+        // RGB: More Research Needed
+        // sendData64 = new Uint8Array(60)
+        // const rgbPromise = collector.requestNext()
+        // await rootDevice.sendReport(0xb3, sendData64)
+        // const rgbReport = await rgbPromise
+        // console.log(rgbReport.reportId, rgbReport.data.toString())
+        // console.log(dataViewToHexString(rgbReport.data))
+      } finally {
+        // manually remove listener after your startup config requests
+        collector.stop()
+      }
+    } finally {
+      if (rootDevice.opened) await rootDevice.close()
+    }
+  }
 
   const connectDevice = async () => {
     setError(null)
@@ -46,22 +160,24 @@ export function App() {
           {
             vendorId: 0x0bda,
             productId: 0xffe0,
+            usagePage: 65473,
           }, // Wireless
           {
             vendorId: 0x0bda,
             productId: 0xfff1,
+            usagePage: 65473,
           }, // Wired
         ],
       })
       if (hidDevices == null || hidDevices.length === 0) {
         setError("No device was selected.")
         return
-      } else if (hidDevices.length != 5) {
-        setError(`Expected 5 devices, but got ${hidDevices.length}.`)
+        // } else if (hidDevices.length != 5) {
+        //   setError(`Expected 5 devices, but got ${hidDevices.length}.`)
       } else {
+        console.log(hidDevices)
         devicesRef.current = hidDevices
         setDeviceConnected(true)
-        console.log(devicesRef.current)
       }
     } catch (err) {
       setError(
@@ -69,14 +185,52 @@ export function App() {
       )
     }
   }
-  const sendReport = (reportId: number, data: number[]) => {
-    if (devicesRef.current) {
-      devicesRef.current[2].sendReport(reportId, new Uint8Array(data))
+  async function sendReport(
+    device: HIDDevice,
+    reportId: number,
+    data: BufferSource
+  ) {
+    try {
+      await device.open()
+      console.log("Sending Report")
+      await device.sendReport(reportId, data)
+      console.log("Sent Report")
+    } catch (err) {
+      console.error(err)
+    } finally {
+      await device.close()
     }
   }
-  const updateDPI = (index: number, newValue: number) => {
-    setDpi((prev) => prev.map((item, i) => (i === index ? newValue : item)))
+  function updateDPIValues(index: number, newValue: number | null = null) {
+    const nextDpi =
+      newValue != null
+        ? dpi.map((item, i) => (i === index ? newValue : item))
+        : dpi
+
+    const nextSelectedDpi = newValue != null ? selectedDpi : index
+
+    if (newValue != null) {
+      setDpi(nextDpi)
+    } else {
+      setSelectedDPI(nextSelectedDpi)
+    }
+
+    const report = new Uint8Array(20) // Pad to 20 bytes
+    const payload = [
+      0x40,
+      0xff,
+      nextSelectedDpi & 0xff,
+      0xff,
+      ...toLittleEndian16Arr(nextDpi),
+    ].slice(0, 20)
+    report.set(payload)
+
+    console.log("report bytes:", dataViewToHexString(report))
+    if (devicesRef.current != null) {
+      sendReport(devicesRef.current[0], 0xb5, report)
+    }
   }
+
   return (
     <div className="flex min-h-svh p-6">
       {browserSupported ? (
@@ -85,11 +239,21 @@ export function App() {
             <h1 className="text-left text-4xl dark:text-white">
               X6 experimental webhid software
             </h1>
-            <Button className="p-4 text-xl" onClick={connectDevice}>
-              {"Connect Device"}
-            </Button>
           </div>
-          <div className="flex max-w-400 justify-between">
+          {!deviceConnected && (
+            <div className="absolute inset-0 z-10 flex items-center justify-center">
+              <Button className="p-4 text-xl" onClick={connectDevice}>
+                Connect Mouse
+              </Button>
+            </div>
+          )}
+
+          <div
+            className={cn(
+              "relative flex max-w-400 justify-between",
+              deviceConnected ? "" : "pointer-events-none opacity-20"
+            )}
+          >
             <MouseSVG />
             <div className="space-y-4">
               <div className="flex h-fit space-x-4">
@@ -105,13 +269,15 @@ export function App() {
                         max={26000}
                         snapOnStep={true}
                         onValueChange={(value) =>
-                          updateDPI(selectedDpi, value || 100)
+                          updateDPIValues(selectedDpi, value || 100)
                         }
                       />
 
                       <Slider
                         value={dpi[selectedDpi]}
-                        onValueChange={(value) => updateDPI(selectedDpi, value)}
+                        onValueChange={(value) =>
+                          updateDPIValues(selectedDpi, value)
+                        }
                         snapToMarks
                         showMarks
                         marks={[
@@ -130,10 +296,10 @@ export function App() {
                       multiple={false}
                       variant="outline"
                       orientation="vertical"
-                      defaultValue={[selectedDpi.toString()]}
+                      value={[selectedDpi.toString()]}
                       className="min-w-20 text-left"
                       onValueChange={(value) =>
-                        setSelectedDPI(parseInt(value[0]))
+                        updateDPIValues(parseInt(value[0]))
                       }
                     >
                       <ToggleGroupItem
@@ -180,13 +346,13 @@ export function App() {
                       multiple={false}
                       variant="outline"
                       spacing={2}
-                      defaultValue={[pollRate.toString()]}
+                      value={[pollRate.toString()]}
                       className="flex flex-col"
                       onValueChange={(value) => setPollRate(parseInt(value[0]))}
                     >
                       <div className="flex w-50 justify-between space-x-2">
                         <ToggleGroupItem
-                          value={"125"}
+                          value={"0"}
                           aria-label="Toggle bold"
                           className="w-16 data-pressed:bg-primary"
                         >
@@ -194,14 +360,14 @@ export function App() {
                         </ToggleGroupItem>
 
                         <ToggleGroupItem
-                          value={"500"}
+                          value={"1"}
                           aria-label="Toggle italic"
                           className="w-16 data-pressed:bg-primary"
                         >
                           500hz
                         </ToggleGroupItem>
                         <ToggleGroupItem
-                          value={"1000"}
+                          value={"2"}
                           aria-label="Toggle strikethrough"
                           className="w-16 data-pressed:bg-primary"
                         >
@@ -210,21 +376,21 @@ export function App() {
                       </div>
                       <div className="flex w-50 justify-between space-x-2">
                         <ToggleGroupItem
-                          value={"2000"}
+                          value={"3"}
                           aria-label="Toggle strikethrough"
                           className="w-16 data-pressed:bg-primary"
                         >
                           2000hz
                         </ToggleGroupItem>
                         <ToggleGroupItem
-                          value={"4000"}
+                          value={"4"}
                           aria-label="Toggle strikethrough"
                           className="w-16 data-pressed:bg-primary"
                         >
                           4000hz
                         </ToggleGroupItem>
                         <ToggleGroupItem
-                          value={"8000"}
+                          value={"5"}
                           aria-label="Toggle strikethrough"
                           className="w-16 data-pressed:bg-primary"
                         >
@@ -294,8 +460,13 @@ export function App() {
                       // sendReport(0xb3, [0x00])
                     }}
                   />
-
-                  {error && <p style={{ color: "red" }}>{error}</p>}
+                  <HexColorInput
+                    prefixed
+                    color={RGBToHex(colour.r, colour.g, colour.b)}
+                    onChange={(value) => {
+                      setColour(HexToRGB(value))
+                    }}
+                  />
                 </Card>
               </div>
 
@@ -402,12 +573,21 @@ export function App() {
                 Macro Functionality Coming Soon... (Its a lot of work I don't
                 wanna do.)
               </Card>
-
+              <Button className="p-4 text-xl" onClick={connectDevice}>
+                DEBUG CONNECT DEVICE
+              </Button>
               <Button
                 className="w-fit p-4 text-lg"
                 onClick={() => sendReport(0xb3, [0x00])}
               >
-                Send Report
+                DEBUG SEND REPORT
+              </Button>
+              <Button
+                className="w-fit p-4 text-lg"
+                // @ts-expect-error 2345
+                onClick={() => getData(devicesRef.current)}
+              >
+                DEBUG GET DPI
               </Button>
             </div>
           </div>
