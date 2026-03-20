@@ -372,7 +372,10 @@ export function App() {
               X6 experimental webhid software
             </h1>
             <Button
-              className="w-fit p-4 text-lg"
+              className={cn(
+                "w-fit p-4 text-lg",
+                deviceConnected ? "" : "pointer-events-none opacity-20"
+              )}
               // @ts-expect-error 2345
               onClick={() => getData(devicesRef.current)}
             >
