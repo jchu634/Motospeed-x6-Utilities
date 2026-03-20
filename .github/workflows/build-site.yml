@@ -1,12 +1,12 @@
 name: Deploy to Github Pages
 
 on: workflow_dispatch
-working-directory: ./webhid
 
 jobs:
   build:
     name: Build
     runs-on: ubuntu-latest
+    working-directory: ./webhid
 
     steps:
       - name: Checkout repo
