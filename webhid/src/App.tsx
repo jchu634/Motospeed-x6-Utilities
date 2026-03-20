@@ -56,6 +56,8 @@ export function App() {
   const [deviceConnected, setDeviceConnected] = useState(false)
   const [colourMode, setColourMode] = useState("off")
   const [colour, setColour] = useState({ r: 50, g: 100, b: 150 }) //TODO Fetch current RGB
+  const [brightness, setBrightness] = useState(255)
+  const [speed, setSpeed] = useState(255)
   const [dpi, setDpi] = useState([1, 2, 3, 4, 5])
   const [pollRate, setPollRate] = useState(1000)
   const [selectedDpi, setSelectedDPI] = useState(0)
@@ -73,7 +75,6 @@ export function App() {
 
     try {
       await rootDevice.open()
-      console.log(devices)
 
       const startInputCollector = (device: HIDDevice, timeoutMs = 2000) => {
         const pending: Array<{
@@ -120,15 +121,15 @@ export function App() {
       const collector = startInputCollector(rootDevice, 2000)
 
       try {
-        // DPI
-        let sendData64 = new Uint8Array(60)
+        // Settings
+        const sendData64 = new Uint8Array(60)
         sendData64[0] = 0x06
-        const dpiPromise = collector.requestNext()
+        const settingsPromise = collector.requestNext()
         await rootDevice.sendReport(0xb3, sendData64)
-        const dpiReport = await dpiPromise
+        const settingsReport = await settingsPromise
 
-        const dpiData = dataViewToHex(dpiReport.data)
-        console.log(dataViewToHexString(dpiReport.data))
+        const dpiData = dataViewToHex(settingsReport.data)
+        console.log(dataViewToHexString(settingsReport.data))
         const dpi: number[] = []
         for (let iter = 5; iter <= 13; iter += 2) {
           dpi.push(dpiData[iter] | (dpiData[iter + 1] << 8))
@@ -139,9 +140,6 @@ export function App() {
         setSleepTime(dpiData[18])
 
         const settingsByte = dpiData[15]
-
-        console.log(settingsByte.toString(2))
-        console.log(settingsByte.toString(16))
 
         setEsports((settingsByte & (1 << 7)) != 0)
         setScrollDirectionForward((settingsByte & (1 << 6)) == 0) // 0x01 forwards, 0x02 back
@@ -154,9 +152,6 @@ export function App() {
           (settingsByte & (1 << 3)) != 0, // angle snap
           (settingsByte & (1 << 4)) != 0, // ripple
         ])
-        console.log(
-          `Current Sensor Settings: ripple=${sensorPerf[0]}, angleSnap=${sensorPerf[1]}, motionSync=${sensorPerf[2]}`
-        )
 
         // 0 0 0 1 1 1 1 0
         // | |   | | | └─┘Lift up distance (01 = high, 10 = low)
@@ -166,14 +161,6 @@ export function App() {
         // | Scroll Direction
         // Esports Mode
         setPollRate(dpiData[2] >> 4)
-
-        // RGB: More Research Needed
-        // sendData64 = new Uint8Array(60)
-        // const rgbPromise = collector.requestNext()
-        // await rootDevice.sendReport(0xb3, sendData64)
-        // const rgbReport = await rgbPromise
-        // console.log(rgbReport.reportId, rgbReport.data.toString())
-        // console.log(dataViewToHexString(rgbReport.data))
       } finally {
         // manually remove listener after your startup config requests
         collector.stop()
@@ -207,6 +194,7 @@ export function App() {
         console.log(hidDevices)
         devicesRef.current = hidDevices
         setDeviceConnected(true)
+        getData(hidDevices)
       }
     } catch (err) {
       setError(
@@ -311,14 +299,12 @@ export function App() {
     isScrollDirectionForwards?: boolean
     setLowLift?: boolean
   }) {
-    // Compute next values first (single source of truth for this call)
     const nextSensorPerf = opts.sensorSettings ?? sensorPerf
     const nextEsports = opts.esportsOn ?? esports
     const nextScrollDirectionForward =
       opts.isScrollDirectionForwards ?? scrollDirectionForward
     const nextLiftOffLow = opts.setLowLift ?? liftOffLow
 
-    // Then update React state
     if (opts.sensorSettings !== undefined) setSensorPerf(nextSensorPerf)
     if (opts.esportsOn !== undefined) setEsports(nextEsports)
     if (opts.isScrollDirectionForwards !== undefined)
@@ -326,7 +312,6 @@ export function App() {
     if (opts.setLowLift !== undefined) setLiftOffLow(nextLiftOffLow)
 
     const report = new Uint8Array(20)
-    console.log(`Esports: ${nextEsports}`)
 
     const payload = [
       0x42,
@@ -341,8 +326,48 @@ export function App() {
     ].slice(0, 20)
 
     report.set(payload)
-    console.log(dataViewToHexString(report))
 
+    if (devicesRef.current != null) {
+      sendReport(devicesRef.current[0], 0xb5, report)
+    }
+  }
+
+  function updateColour(opts: {
+    Colour?: { r: number; g: number; b: number }
+    ColourMode?: string
+    brightness?: number
+    speed?: number
+  }) {
+    const nextColour = opts.Colour ?? colour
+    const nextColourMode = opts.ColourMode ?? colourMode
+    const nextBrightness = opts.brightness ?? brightness
+    const nextSpeed = opts.speed ?? speed
+
+    if (opts.Colour !== undefined) setColour(nextColour)
+    if (opts.ColourMode !== undefined) setColourMode(nextColourMode)
+    if (opts.brightness !== undefined) setBrightness(nextBrightness)
+    if (opts.speed !== undefined) setSpeed(nextSpeed)
+
+    const report = new Uint8Array(20) // Pad to 20 bytes
+
+    const payload =
+      nextColourMode === "off"
+        ? [0x24].slice(0, 20)
+        : [
+            0x24,
+            nextColourMode === "static"
+              ? 0x01
+              : nextColourMode === "breath"
+                ? 0x02
+                : 0x03, // Rainbow
+            brightness,
+            speed,
+            nextColour.r,
+            nextColour.g,
+            nextColour.b,
+          ].slice(0, 20)
+    report.set(payload)
+    console.log(dataViewToHexString(report))
     if (devicesRef.current != null) {
       sendReport(devicesRef.current[0], 0xb5, report)
     }
@@ -519,73 +544,160 @@ export function App() {
                     </ToggleGroup>
                   </Card>
                 </div>
-                <Card className="h-87 w-fit p-4">
-                  <Button className="size-10">
-                    <HugeiconsIcon icon={PaintBrush04Icon} className="size-6" />
-                  </Button>
-                  <ToggleGroup
-                    multiple={false}
-                    variant="outline"
-                    // value={rgbModes}
-                    defaultValue={[colourMode]}
-                    onValueChange={(value) => setColourMode(value[0])}
-                  >
-                    <ToggleGroupItem
-                      value="off"
-                      aria-label="Toggle bold"
-                      className="data-pressed:bg-primary"
+                <Card className="h-87 w-fit min-w-65 p-4">
+                  <div className="flex space-x-2">
+                    <div
+                      className={cn(
+                        "space-y-3",
+                        colourMode != "off"
+                          ? ""
+                          : "pointer-events-none opacity-40"
+                      )}
                     >
-                      <HugeiconsIcon
-                        icon={LightbulbOffIcon}
-                        className="size-6"
+                      <RgbColorPicker
+                        className="max-h-40"
+                        color={colour}
+                        onChange={(colour) => {
+                          updateColour({
+                            Colour: { r: colour.r, g: colour.g, b: colour.b },
+                          })
+                        }}
                       />
-                    </ToggleGroupItem>
 
-                    <ToggleGroupItem
-                      value="static"
-                      aria-label="Toggle italic"
-                      className="data-pressed:bg-primary"
+                      <div className="flex space-x-2">
+                        <p>Colour: </p>
+                        <HexColorInput
+                          className="w-20 rounded-xs pl-2 outline"
+                          prefixed
+                          color={RGBToHex(colour.r, colour.g, colour.b)}
+                          onChange={(value) => {
+                            updateColour({ Colour: HexToRGB(value) })
+                          }}
+                        />
+                      </div>
+                    </div>
+                    <ToggleGroup
+                      multiple={false}
+                      variant="outline"
+                      orientation="vertical"
+                      // value={rgbModes}
+                      value={[colourMode]}
+                      onValueChange={(value) =>
+                        updateColour({ ColourMode: value[0] ?? colourMode })
+                      }
+                      spacing={1}
                     >
-                      <HugeiconsIcon icon={Idea01Icon} className="size-6" />
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="breath"
-                      aria-label="Toggle strikethrough"
-                      className="data-pressed:bg-primary"
-                    >
-                      <HugeiconsIcon icon={FastWindIcon} className="size-6" />
-                    </ToggleGroupItem>
-                    <ToggleGroupItem
-                      value="cycle"
-                      aria-label="Toggle strikethrough"
-                      className="data-pressed:bg-primary"
-                    >
-                      <HugeiconsIcon
-                        icon={ArrowReloadHorizontalIcon}
-                        className="size-6"
-                      />
-                    </ToggleGroupItem>
-                  </ToggleGroup>
+                      <ToggleGroupItem
+                        value="off"
+                        aria-label="Toggle bold"
+                        className="data-pressed:bg-primary"
+                      >
+                        <HugeiconsIcon
+                          icon={LightbulbOffIcon}
+                          className="size-6"
+                        />
+                      </ToggleGroupItem>
 
-                  <RgbColorPicker
-                    className={
+                      <ToggleGroupItem
+                        value="static"
+                        aria-label="Toggle italic"
+                        className="data-pressed:bg-primary"
+                      >
+                        <HugeiconsIcon icon={Idea01Icon} className="size-6" />
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value="breath"
+                        aria-label="Toggle strikethrough"
+                        className="data-pressed:bg-primary"
+                      >
+                        <HugeiconsIcon icon={FastWindIcon} className="size-6" />
+                      </ToggleGroupItem>
+                      <ToggleGroupItem
+                        value="cycle"
+                        aria-label="Toggle strikethrough"
+                        className="data-pressed:bg-primary"
+                      >
+                        <HugeiconsIcon
+                          icon={ArrowReloadHorizontalIcon}
+                          className="size-6"
+                        />
+                      </ToggleGroupItem>
+                    </ToggleGroup>
+                  </div>
+                  <div
+                    className={cn(
+                      "space-y-1",
                       colourMode != "off"
                         ? ""
                         : "pointer-events-none opacity-40"
-                    }
-                    color={colour}
-                    onChange={(colour) => {
-                      setColour({ r: colour.r, g: colour.g, b: colour.b })
-                      // sendReport(0xb3, [0x00])
-                    }}
-                  />
-                  <HexColorInput
-                    prefixed
-                    color={RGBToHex(colour.r, colour.g, colour.b)}
-                    onChange={(value) => {
-                      setColour(HexToRGB(value))
-                    }}
-                  />
+                    )}
+                  >
+                    <h3>Brightness:</h3>
+                    <div className="flex items-center space-x-2">
+                      <NumberField
+                        className="w-40 rounded-md"
+                        value={brightness}
+                        min={1}
+                        max={255}
+                        step={5}
+                        onValueChange={(value) =>
+                          updateColour({ brightness: value || speed })
+                        }
+                      />
+                      <Slider
+                        value={brightness}
+                        onValueChange={(value) =>
+                          updateColour({ brightness: value })
+                        }
+                        snapToMarks
+                        showMarks
+                        max={255}
+                        min={1}
+                        step={1}
+                        className="mx-auto w-full max-w-xs"
+                      />
+                    </div>
+                    <h3
+                      className={cn(
+                        ["breath", "cycle"].includes(colourMode)
+                          ? ""
+                          : "pointer-events-none opacity-40"
+                      )}
+                    >
+                      Speed:
+                    </h3>
+                    <div
+                      className={cn(
+                        "flex items-center space-x-2",
+                        ["breath", "cycle"].includes(colourMode)
+                          ? ""
+                          : "pointer-events-none opacity-40"
+                      )}
+                    >
+                      <NumberField
+                        className="w-40 rounded-md"
+                        value={speed}
+                        min={1}
+                        max={255}
+                        step={5}
+                        onValueChange={(value) =>
+                          updateColour({ speed: value || speed })
+                        }
+                      />
+                      <Slider
+                        value={speed}
+                        onValueChange={(value) =>
+                          updateColour({ speed: value })
+                        }
+                        snapToMarks
+                        showMarks
+                        max={255}
+                        min={1}
+                        step={1}
+                        className="mx-auto w-max max-w-xs"
+                      />
+                    </div>
+                  </div>
                 </Card>
               </div>
 
@@ -609,10 +721,9 @@ export function App() {
                   <Toggle
                     pressed={esports}
                     variant="outline"
-                    onPressedChange={(value) => {
-                      console.log(`Value:${value}`)
+                    onPressedChange={(value) =>
                       updateSettings({ esportsOn: value })
-                    }}
+                    }
                     className="w-25 cursor-pointer hover:bg-primary"
                   >
                     {esports ? <>On</> : <>Off</>}
