@@ -3,7 +3,6 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
-  PaintBrush04Icon,
   LightbulbOffIcon,
   Idea01Icon,
   FastWindIcon,
@@ -44,10 +43,6 @@ function toLittleEndian16Arr(values: number[]): number[] {
     return [v & 0xff, (v >> 8) & 0xff]
   })
 }
-function toLittleEndian16(value: number): number[] {
-  const v = Math.max(0, Math.min(0xffff, value)) // clamp to uint16
-  return [v & 0xff, (v >> 8) & 0xff]
-}
 
 export function App() {
   const devicesRef = useRef<HIDDevice[] | null>(null)
@@ -67,8 +62,6 @@ export function App() {
   const [scrollDirectionForward, setScrollDirectionForward] = useState(true)
   const [debounce, setDebounce] = useState(5)
   const [sleepTime, setSleepTime] = useState(1)
-
-  const [error, setError] = useState<string | null>(null)
 
   async function getData(devices: HIDDevice[]) {
     const rootDevice = devices[0]
@@ -171,7 +164,6 @@ export function App() {
   }
 
   const connectDevice = async () => {
-    setError(null)
     try {
       const hidDevices = await navigator.hid.requestDevice({
         filters: [
@@ -188,7 +180,7 @@ export function App() {
         ],
       })
       if (hidDevices == null || hidDevices.length === 0) {
-        setError("No device was selected.")
+        console.error("No device was selected.")
         return
       } else {
         console.log(hidDevices)
@@ -197,9 +189,7 @@ export function App() {
         getData(hidDevices)
       }
     } catch (err) {
-      setError(
-        err instanceof Error ? err.message : "Failed to connect to device"
-      )
+      console.error(err)
     }
   }
   async function sendReport(
@@ -367,7 +357,7 @@ export function App() {
             nextColour.b,
           ].slice(0, 20)
     report.set(payload)
-    console.log(dataViewToHexString(report))
+
     if (devicesRef.current != null) {
       sendReport(devicesRef.current[0], 0xb5, report)
     }
@@ -381,6 +371,13 @@ export function App() {
             <h1 className="text-left text-4xl dark:text-white">
               X6 experimental webhid software
             </h1>
+            <Button
+              className="w-fit p-4 text-lg"
+              // @ts-expect-error 2345
+              onClick={() => getData(devicesRef.current)}
+            >
+              Refresh Data
+            </Button>
           </div>
           {!deviceConnected && (
             <div className="absolute inset-0 z-10 flex items-center justify-center">
@@ -805,25 +802,9 @@ export function App() {
                 </div>
               </Card>
               <Card className="p-4">
-                Macro Functionality Coming Soon... (Its a lot of work I don't
-                wanna do.)
+                Key rebinding and Macro Functionality Coming Soon... (Its a lot
+                of work I don't wanna do.)
               </Card>
-              <Button className="p-4 text-xl" onClick={connectDevice}>
-                DEBUG CONNECT DEVICE
-              </Button>
-              <Button
-                className="w-fit p-4 text-lg"
-                onClick={() => sendReport(0xb3, [0x00])}
-              >
-                DEBUG SEND REPORT
-              </Button>
-              <Button
-                className="w-fit p-4 text-lg"
-                // @ts-expect-error 2345
-                onClick={() => getData(devicesRef.current)}
-              >
-                DEBUG GET DPI
-              </Button>
             </div>
           </div>
         </div>
