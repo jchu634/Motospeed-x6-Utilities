@@ -56,12 +56,12 @@ export function App() {
   const [deviceConnected, setDeviceConnected] = useState(false)
   const [colourMode, setColourMode] = useState("off")
   const [colour, setColour] = useState({ r: 50, g: 100, b: 150 }) //TODO Fetch current RGB
-  const [dpi, setDpi] = useState([1, 2, 3, 4, 5]) //TODO Fetch actual DPI
-  const [pollRate, setPollRate] = useState(1000) //TODO Fetch actual DPI
+  const [dpi, setDpi] = useState([1, 2, 3, 4, 5])
+  const [pollRate, setPollRate] = useState(1000)
   const [selectedDpi, setSelectedDPI] = useState(0)
   const [liftOffLow, setLiftOffLow] = useState(true)
   const [esports, setEsports] = useState(false)
-  const [sensorPerf, setSensorPerf] = useState([true, true, false]) //ripple, angle snap, motion sync
+  const [sensorPerf, setSensorPerf] = useState([true, true, false]) // ripple, angle snap, motion sync
   const [scrollDirectionForward, setScrollDirectionForward] = useState(true)
   const [debounce, setDebounce] = useState(5)
   const [sleepTime, setSleepTime] = useState(1)
@@ -136,6 +136,35 @@ export function App() {
         setDpi(dpi)
         setSelectedDPI(dpiData[4])
         setDebounce(dpiData[17])
+        setSleepTime(dpiData[18])
+
+        const settingsByte = dpiData[15]
+
+        console.log(settingsByte.toString(2))
+        console.log(settingsByte.toString(16))
+
+        setEsports((settingsByte & (1 << 7)) != 0)
+        setScrollDirectionForward((settingsByte & (1 << 6)) == 0) // 0x01 forwards, 0x02 back
+
+        // 01 = high, 10 = low
+        setLiftOffLow((settingsByte & (1 << 1)) == 0)
+
+        setSensorPerf([
+          (settingsByte & (1 << 2)) != 0, // motion sync
+          (settingsByte & (1 << 3)) != 0, // angle snap
+          (settingsByte & (1 << 4)) != 0, // ripple
+        ])
+        console.log(
+          `Current Sensor Settings: ripple=${sensorPerf[0]}, angleSnap=${sensorPerf[1]}, motionSync=${sensorPerf[2]}`
+        )
+
+        // 0 0 0 1 1 1 1 0
+        // | |   | | | └─┘Lift up distance (01 = high, 10 = low)
+        // | |   | | Motion Sync
+        // | |   | Angle Snap
+        // | |   Ripple
+        // | Scroll Direction
+        // Esports Mode
         setPollRate(dpiData[2] >> 4)
 
         // RGB: More Research Needed
@@ -262,7 +291,58 @@ export function App() {
     const report = new Uint8Array(20) // Pad to 20 bytes
     const payload = [0x43, debounce].slice(0, 20)
     report.set(payload)
-    console.log("report bytes:", dataViewToHexString(report))
+    if (devicesRef.current != null) {
+      sendReport(devicesRef.current[0], 0xb5, report)
+    }
+  }
+  function updateSleep(sleepTime: number) {
+    setSleepTime(sleepTime)
+
+    const report = new Uint8Array(20) // Pad to 20 bytes
+    const payload = [0x0a, 0x01, sleepTime].slice(0, 20)
+    report.set(payload)
+    if (devicesRef.current != null) {
+      sendReport(devicesRef.current[0], 0xb5, report)
+    }
+  }
+  function updateSettings(opts: {
+    sensorSettings?: boolean[]
+    esportsOn?: boolean
+    isScrollDirectionForwards?: boolean
+    setLowLift?: boolean
+  }) {
+    // Compute next values first (single source of truth for this call)
+    const nextSensorPerf = opts.sensorSettings ?? sensorPerf
+    const nextEsports = opts.esportsOn ?? esports
+    const nextScrollDirectionForward =
+      opts.isScrollDirectionForwards ?? scrollDirectionForward
+    const nextLiftOffLow = opts.setLowLift ?? liftOffLow
+
+    // Then update React state
+    if (opts.sensorSettings !== undefined) setSensorPerf(nextSensorPerf)
+    if (opts.esportsOn !== undefined) setEsports(nextEsports)
+    if (opts.isScrollDirectionForwards !== undefined)
+      setScrollDirectionForward(nextScrollDirectionForward)
+    if (opts.setLowLift !== undefined) setLiftOffLow(nextLiftOffLow)
+
+    const report = new Uint8Array(20)
+    console.log(`Esports: ${nextEsports}`)
+
+    const payload = [
+      0x42,
+      nextLiftOffLow ? 0x01 : 0x02,
+
+      nextSensorPerf[0] ? 0x01 : 0x02,
+      nextSensorPerf[1] ? 0x01 : 0x02,
+      nextSensorPerf[2] ? 0x01 : 0x02,
+      0x00,
+      nextScrollDirectionForward ? 0x01 : 0x02,
+      nextEsports ? 0x02 : 0x01,
+    ].slice(0, 20)
+
+    report.set(payload)
+    console.log(dataViewToHexString(report))
+
     if (devicesRef.current != null) {
       sendReport(devicesRef.current[0], 0xb5, report)
     }
@@ -516,7 +596,9 @@ export function App() {
                   <Toggle
                     pressed={liftOffLow}
                     variant="outline"
-                    onPressedChange={(value) => setLiftOffLow(value)}
+                    onPressedChange={(value) =>
+                      updateSettings({ setLowLift: value })
+                    }
                     className="w-25 cursor-pointer hover:bg-primary"
                   >
                     {liftOffLow ? <>Low</> : <>High</>}
@@ -527,7 +609,10 @@ export function App() {
                   <Toggle
                     pressed={esports}
                     variant="outline"
-                    onPressedChange={(value) => setEsports(value)}
+                    onPressedChange={(value) => {
+                      console.log(`Value:${value}`)
+                      updateSettings({ esportsOn: value })
+                    }}
                     className="w-25 cursor-pointer hover:bg-primary"
                   >
                     {esports ? <>On</> : <>Off</>}
@@ -539,7 +624,7 @@ export function App() {
                     pressed={scrollDirectionForward}
                     variant="outline"
                     onPressedChange={(value) =>
-                      setScrollDirectionForward(value)
+                      updateSettings({ isScrollDirectionForwards: value })
                     }
                     className="w-25 cursor-pointer hover:bg-primary"
                   >
@@ -553,9 +638,9 @@ export function App() {
                       pressed={sensorPerf[0]}
                       variant="outline"
                       onPressedChange={(value) =>
-                        setSensorPerf((prev) =>
-                          prev.map((item, i) => (i === 0 ? value : item))
-                        )
+                        updateSettings({
+                          sensorSettings: [value, sensorPerf[1], sensorPerf[2]],
+                        })
                       }
                       className="w-25 cursor-pointer hover:bg-primary"
                     >
@@ -565,9 +650,9 @@ export function App() {
                       pressed={sensorPerf[1]}
                       variant="outline"
                       onPressedChange={(value) =>
-                        setSensorPerf((prev) =>
-                          prev.map((item, i) => (i === 1 ? value : item))
-                        )
+                        updateSettings({
+                          sensorSettings: [sensorPerf[0], value, sensorPerf[2]],
+                        })
                       }
                       className="w-25 cursor-pointer hover:bg-primary"
                     >
@@ -577,9 +662,9 @@ export function App() {
                       pressed={sensorPerf[2]}
                       variant="outline"
                       onPressedChange={(value) =>
-                        setSensorPerf((prev) =>
-                          prev.map((item, i) => (i === 2 ? value : item))
-                        )
+                        updateSettings({
+                          sensorSettings: [sensorPerf[0], sensorPerf[1], value],
+                        })
                       }
                       className="w-25 cursor-pointer hover:bg-primary"
                     >
@@ -604,7 +689,7 @@ export function App() {
                     value={sleepTime}
                     min={1}
                     max={60}
-                    onValueChange={(value) => setSleepTime(value || sleepTime)}
+                    onValueChange={(value) => updateSleep(value || sleepTime)}
                   />
                 </div>
               </Card>
