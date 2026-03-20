@@ -128,12 +128,14 @@ export function App() {
         const dpiReport = await dpiPromise
 
         const dpiData = dataViewToHex(dpiReport.data)
+        console.log(dataViewToHexString(dpiReport.data))
         const dpi: number[] = []
         for (let iter = 5; iter <= 13; iter += 2) {
           dpi.push(dpiData[iter] | (dpiData[iter + 1] << 8))
         }
         setDpi(dpi)
         setSelectedDPI(dpiData[4])
+        setDebounce(dpiData[17])
         setPollRate(dpiData[2] >> 4)
 
         // RGB: More Research Needed
@@ -172,8 +174,6 @@ export function App() {
       if (hidDevices == null || hidDevices.length === 0) {
         setError("No device was selected.")
         return
-        // } else if (hidDevices.length != 5) {
-        //   setError(`Expected 5 devices, but got ${hidDevices.length}.`)
       } else {
         console.log(hidDevices)
         devicesRef.current = hidDevices
@@ -225,6 +225,43 @@ export function App() {
     ].slice(0, 20)
     report.set(payload)
 
+    if (devicesRef.current != null) {
+      sendReport(devicesRef.current[0], 0xb5, report)
+    }
+  }
+  function updatePollingRate(index: number) {
+    setPollRate(index)
+
+    const report = new Uint8Array(20) // Pad to 20 bytes
+    const payload = [
+      0x41,
+      0xff,
+      index,
+      0xff,
+      0x7d,
+      0x00,
+      0xf4,
+      0x01,
+      0xe8,
+      0x03,
+      0xd0,
+      0x07,
+      0xa0,
+      0x0f,
+      0x40,
+      0x1f,
+    ].slice(0, 20)
+    report.set(payload)
+    if (devicesRef.current != null) {
+      sendReport(devicesRef.current[0], 0xb5, report)
+    }
+  }
+  function updateDebounce(debounce: number) {
+    setDebounce(debounce)
+
+    const report = new Uint8Array(20) // Pad to 20 bytes
+    const payload = [0x43, debounce].slice(0, 20)
+    report.set(payload)
     console.log("report bytes:", dataViewToHexString(report))
     if (devicesRef.current != null) {
       sendReport(devicesRef.current[0], 0xb5, report)
@@ -348,7 +385,9 @@ export function App() {
                       spacing={2}
                       value={[pollRate.toString()]}
                       className="flex flex-col"
-                      onValueChange={(value) => setPollRate(parseInt(value[0]))}
+                      onValueChange={(value) =>
+                        updatePollingRate(parseInt(value[0]))
+                      }
                     >
                       <div className="flex w-50 justify-between space-x-2">
                         <ToggleGroupItem
@@ -555,7 +594,7 @@ export function App() {
                     value={debounce}
                     min={0}
                     max={20}
-                    onValueChange={(value) => setDebounce(value || debounce)}
+                    onValueChange={(value) => updateDebounce(value || debounce)}
                   />
                 </div>
                 <div className="flex w-60 items-center justify-between">
