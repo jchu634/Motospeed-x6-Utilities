@@ -24,7 +24,7 @@ function NumberFieldGroup({
     <NumberFieldPrimitive.Group
       data-slot="number-field-group"
       className={cn(
-        "flex h-8 items-stretch overflow-hidden rounded-none border border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/50 data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:bg-input/50 data-[disabled]:opacity-50 dark:bg-input/30 dark:data-[disabled]:bg-input/80",
+        "flex h-8 items-stretch overflow-hidden rounded-sm border border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-1 focus-within:ring-ring/50 data-[disabled]:pointer-events-none data-[disabled]:cursor-not-allowed data-[disabled]:bg-input/50 data-[disabled]:opacity-50 dark:bg-input/30 dark:data-[disabled]:bg-input/80",
         className
       )}
       {...props}
@@ -56,7 +56,7 @@ function NumberFieldIncrement({
     <NumberFieldPrimitive.Increment
       data-slot="number-field-increment"
       className={cn(
-        "flex items-center justify-center border-l border-input bg-transparent px-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
+        "flex items-center justify-center border-l bg-card px-1.5 text-muted-foreground transition-colors hover:bg-primary hover:text-accent-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}
@@ -85,7 +85,7 @@ function NumberFieldDecrement({
     <NumberFieldPrimitive.Decrement
       data-slot="number-field-decrement"
       className={cn(
-        "flex items-center justify-center border-r border-input bg-transparent px-1.5 text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
+        "flex items-center justify-center border-r border-input bg-card px-1.5 text-muted-foreground transition-colors hover:bg-primary hover:text-accent-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50",
         className
       )}
       {...props}
