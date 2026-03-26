@@ -396,7 +396,16 @@ export function App() {
               deviceConnected ? "" : "pointer-events-none opacity-20"
             )}
           >
-            <MouseSVG />
+            <div className="relative flex">
+              <MouseSVG />
+
+              <Button className="absolute top-10 right-90">Left Click</Button>
+              <Button className="absolute top-10 right-55">Right Click</Button>
+              <Button className="absolute top-35 right-50">Middle Click</Button>
+              {/* Use Right positioning instead of left to stop text overflow issues*/}
+              <Button className="absolute top-70 right-125">Button 3</Button>
+              <Button className="absolute top-85 right-125">Button 4</Button>
+            </div>
             <div className="space-y-4">
               <div className="flex h-fit space-x-4">
                 <div className="space-y-4">
