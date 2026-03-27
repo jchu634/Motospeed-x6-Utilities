@@ -1,12 +1,13 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 use rusb::{Context, UsbContext};
 use std::fs;
-use std::sync::mpsc;
+use std::str::FromStr;
+use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::Duration;
 use tray_item::{IconSource, TrayItem};
 
-// Include generated icon name static array
+// Include generated icon name static arrays
 include!(concat!(env!("OUT_DIR"), "/icon_names.rs"));
 
 const SET_REPORT_REQUEST_TYPE: u8 = 0x21; // host→device, class, interface
@@ -28,6 +29,23 @@ const VID: u16 = 0x0BDA;
 const PID: [u16; 2] = [0xFFE0, 0xFFF1];
 const PLUGGED_PID: [u16; 1] = [0xFFF1];
 
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
+enum IconVariant {
+    Bg,
+    NoBg,
+}
+impl FromStr for IconVariant {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_ascii_lowercase().as_str() {
+            "bg" => Ok(IconVariant::Bg),
+            "nobg" | "no_bg" | "no-bg" => Ok(IconVariant::NoBg),
+            other => Err(format!("invalid icon variant: {}", other)),
+        }
+    }
+}
+
 /// Gets Battery level from mouse
 ///
 /// Return Values
@@ -43,17 +61,18 @@ fn get_battery_level() -> i16 {
             return -1;
         }
     };
+
     let device = match context.devices() {
         Ok(list) => list.iter().find(|d| {
             let desc = d.device_descriptor().unwrap();
             desc.vendor_id() == VID && PID.contains(&desc.product_id())
         }),
-
         Err(e) => {
             eprintln!("Failed to enumerate devices: {}", e);
             return -1;
         }
     };
+
     let device = match device {
         Some(d) => d,
         None => {
@@ -61,7 +80,8 @@ fn get_battery_level() -> i16 {
             return -1;
         }
     };
-    // Plugged in Devices will not return the correct battery level
+
+    // Plugged in devices will not return the correct battery level
     if PLUGGED_PID.contains(&device.device_descriptor().unwrap().product_id()) {
         return -2;
     }
@@ -106,19 +126,20 @@ fn get_battery_level() -> i16 {
         READ_TIMEOUT,
     ) {
         eprintln!("SET_REPORT failed: {}", e);
+        let _ = handle.release_interface(INTERFACE_NUMBER);
         return -1;
     }
 
     let mut buf = [0u8; 64];
-
     for attempt in 1..=MAX_READ_ATTEMPTS {
         match handle.read_interrupt(BATTERY_ENDPOINT, &mut buf, READ_TIMEOUT) {
             Ok(len) => {
                 if buf[0] == BATTERY_REPORT_ID {
                     if len > BATTERY_OFFSET {
-                        let battery = buf[BATTERY_OFFSET];
+                        let battery = buf[BATTERY_OFFSET] as i16;
+                        let _ = handle.release_interface(INTERFACE_NUMBER);
                         println!("Battery level: {}%", battery);
-                        return battery as i16;
+                        return battery;
                     } else {
                         eprintln!("Battery report too short: {} bytes", len);
                     }
@@ -135,27 +156,28 @@ fn get_battery_level() -> i16 {
     }
 
     eprintln!("Failed to retrieve battery level.");
-
-    if let Err(e) = handle.release_interface(INTERFACE_NUMBER) {
-        eprintln!("Failed to release interface: {}", e);
-    }
+    let _ = handle.release_interface(INTERFACE_NUMBER);
     return -1;
 }
 
 #[derive(Debug)]
-enum Config {
-    Duration(Duration),
+struct Config {
+    duration: Duration,
+    variant: IconVariant,
 }
 
 fn read_config() -> Config {
-    let default = Config::Duration(Duration::from_secs(60));
+    let mut config = Config {
+        duration: Duration::from_secs(60),
+        variant: IconVariant::Bg,
+    };
 
     let contents = match fs::read_to_string("config.txt") {
         Ok(c) => c,
-        Err(_) => return default,
+        Err(_) => return config,
     };
 
-    // Example file line: `duration_secs = 120`
+    // Example file line: `polltimeout = 120`
     for line in contents.lines() {
         let line = line.trim();
 
@@ -165,12 +187,17 @@ fn read_config() -> Config {
 
         if let Some(v) = line.strip_prefix("polltimeout =") {
             if let Ok(secs) = v.trim().parse::<u64>() {
-                return Config::Duration(Duration::from_secs(secs));
+                config.duration = Duration::from_secs(secs);
+            }
+        }
+        if let Some(v) = line.strip_prefix("variant =") {
+            if let Ok(variant) = v.trim().parse::<IconVariant>() {
+                config.variant = variant;
             }
         }
     }
 
-    default
+    return config;
 }
 
 enum Message {
@@ -178,14 +205,59 @@ enum Message {
     BatteryUpdate(i16),
 }
 
+fn icon_names_for_variant(variant: IconVariant) -> &'static [&'static str] {
+    match variant {
+        IconVariant::Bg => &ICON_NAMES_BG,
+        IconVariant::NoBg => &ICON_NAMES_NOBG,
+    }
+}
+
+fn fallback_none_icon(variant: IconVariant) -> &'static str {
+    match variant {
+        IconVariant::Bg => "bg-battery-none",
+        IconVariant::NoBg => "nobg-battery-none",
+    }
+}
+
+fn icon_for_level(level: i16, variant: IconVariant) -> &'static str {
+    match level {
+        -2 => match variant {
+            IconVariant::Bg => "bg-battery-plugged",
+            IconVariant::NoBg => "nobg-battery-plugged",
+        },
+        -1 => fallback_none_icon(variant),
+        0..=228 => {
+            let charging = level >= 128;
+            let clamped = if charging {
+                (level - 128).clamp(0, 99)
+            } else {
+                level.clamp(0, 99)
+            };
+
+            let idx = clamped as usize * 2 + if charging { 1 } else { 0 };
+            icon_names_for_variant(variant)
+                .get(idx)
+                .copied()
+                .unwrap_or(fallback_none_icon(variant))
+        }
+        _ => fallback_none_icon(variant),
+    }
+}
+
 fn main() {
     let config = read_config();
+    let poll_timeout = config.duration;
+    let icon_variant = Arc::new(Mutex::new(config.variant));
 
-    let poll_timeout = match config {
-        Config::Duration(dur) => dur,
+    let initial_icon = {
+        let icon = *icon_variant.lock().unwrap();
+        match icon {
+            IconVariant::Bg => "bg-battery-00",
+            IconVariant::NoBg => "nobg-battery-00",
+        }
     };
 
-    let mut tray = TrayItem::new("X6 Battery Util", IconSource::Resource("battery-00")).unwrap();
+    let mut tray = TrayItem::new("X6 Battery Util", IconSource::Resource(initial_icon)).unwrap();
 
     tray.add_label("X6 Battery Utility").unwrap();
 
@@ -209,12 +281,25 @@ fn main() {
     let battery_manual_tx = tx.clone();
     tray.add_menu_item("Refresh", move || {
         let battery_level = get_battery_level();
+        let _ = battery_manual_tx.send(Message::BatteryUpdate(battery_level));
+    })
+    .unwrap();
 
-        battery_manual_tx
-            .send(Message::BatteryUpdate(battery_level))
-            .unwrap()
+    let variant_change = tx.clone();
+    let icon_variant_menu = Arc::clone(&icon_variant);
 
-        // Main thread has closed
+    tray.add_menu_item("Change Icon Background", move || {
+        let mut icon = icon_variant_menu.lock().unwrap();
+
+        if *icon == IconVariant::Bg {
+            *icon = IconVariant::NoBg;
+        } else {
+            *icon = IconVariant::Bg;
+        }
+
+        drop(icon);
+        let battery_level = get_battery_level();
+        let _ = variant_change.send(Message::BatteryUpdate(battery_level));
     })
     .unwrap();
 
@@ -222,66 +307,42 @@ fn main() {
 
     let quit_tx = tx.clone();
     tray.add_menu_item("Quit", move || {
-        quit_tx.send(Message::Quit).unwrap();
+        let _ = quit_tx.send(Message::Quit);
     })
     .unwrap();
 
     let mut tooltip_text = String::from("Initializing...");
     tray.inner_mut()
         .set_tooltip(&tooltip_text)
-        .expect("Failed to set tray tooltip after battery update");
+        .expect("Failed to set tray tooltip after initialization");
 
     loop {
         match rx.recv() {
-            Ok(Message::Quit) => {
-                println!("Quit");
-                break;
-            }
+            Ok(Message::Quit) => break,
+
             Ok(Message::BatteryUpdate(level)) => {
+                let variant = {
+                    let icon = icon_variant.lock().unwrap();
+                    *icon
+                };
+                let icon = icon_for_level(level, variant);
+                tray.set_icon(IconSource::Resource(icon)).unwrap();
+
+                tooltip_text.clear();
                 match level {
-                    -2 => {
-                        // Device is Plugged in (Battery reporting does not work)
-                        tray.set_icon(IconSource::Resource("battery-plugged"))
-                            .unwrap();
-                    }
-                    -1 => {
-                        // Assume that the device is not connected
-                        tray.set_icon(IconSource::Resource("battery-none")).unwrap();
-                    }
+                    -2 => tooltip_text.push_str("Device plugged in"),
+                    -1 => tooltip_text.push_str("No device detected"),
                     0..=228 => {
-                        let charging;
-                        let clamped;
-                        if level >= 128 {
-                            charging = true;
-                            clamped = (level - 128).clamp(0, 99);
-                        } else {
-                            charging = false;
-                            clamped = level.clamp(0, 99);
-                        }
-
-                        let idx = clamped as usize * 2 + if charging { 1 } else { 0 };
-
-                        // Fallback if index out of bounds (should never happen)
-                        let icon = *ICON_NAMES.get(idx).unwrap_or(&"battery-none");
-
-                        tray.set_icon(IconSource::Resource(icon)).unwrap();
-
-                        tooltip_text.clear();
-                        if level < 0 {
-                            tooltip_text.push_str("No battery detected");
-                        } else {
-                            use std::fmt::Write as _;
-                            // Write into the existing string so its memory stays the same.
-                            let _ = write!(tooltip_text, "Battery: {}%", level);
-                        }
-
-                        let tooltip_ref: &str = tooltip_text.as_str();
-                        tray.inner_mut().set_tooltip(tooltip_ref).unwrap();
+                        use std::fmt::Write as _;
+                        let shown = if level >= 128 { level - 128 } else { level };
+                        let _ = write!(tooltip_text, "Battery: {}%", shown.clamp(0, 99));
                     }
-                    _ => {}
+                    _ => tooltip_text.push_str("Unknown battery state"),
                 }
+
+                tray.inner_mut().set_tooltip(tooltip_text.as_str()).unwrap();
             }
-            _ => {}
+            Err(_) => break,
         }
     }
 }
