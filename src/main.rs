@@ -370,6 +370,14 @@ fn main() {
                                 .as_str(),
                         )
                         .show();
+                    #[cfg(not(target_os = "windows"))]
+                    let _ = Notification::new()
+                        .summary("X6 Battery is Low")
+                        .body(
+                            format!(r"Your mouse's battery is less than {battery_warning_level}%")
+                                .as_str(),
+                        )
+                        .show();
                     has_battery_warning_played = true;
                 } else {
                     has_battery_warning_played = false;
