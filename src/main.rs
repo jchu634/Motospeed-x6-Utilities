@@ -399,6 +399,9 @@ fn main() {
                         use std::fmt::Write as _;
                         let shown = if level >= 128 { level - 128 } else { level };
                         let _ = write!(tooltip_text, "Battery: {}%", shown.clamp(0, 99));
+                        if level > battery_warning_level {
+                            has_battery_warning_played = false;
+                        }
                     }
                     _ => tooltip_text.push_str("Unknown battery state"),
                 }
