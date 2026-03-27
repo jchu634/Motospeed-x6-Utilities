@@ -94,11 +94,11 @@ fn get_battery_level() -> i16 {
         }
     };
 
-    /* Linux Specific
+    #[cfg(target_os = "linux")]
     if let Ok(true) = handle.kernel_driver_active(INTERFACE_NUMBER) {
         if let Err(e) = handle.detach_kernel_driver(INTERFACE_NUMBER) {
             eprintln!("Failed to detach kernel driver: {}", e);
-            return;
+            return -1;
         }
         println!("Detached kernel driver");
     }
