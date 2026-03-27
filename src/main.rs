@@ -206,6 +206,18 @@ fn main() {
         }
     });
 
+    let battery_manual_tx = tx.clone();
+    tray.add_menu_item("Refresh", move || {
+        let battery_level = get_battery_level();
+
+        battery_manual_tx
+            .send(Message::BatteryUpdate(battery_level))
+            .unwrap()
+
+        // Main thread has closed
+    })
+    .unwrap();
+
     tray.inner_mut().add_separator().unwrap();
 
     let quit_tx = tx.clone();

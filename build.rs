@@ -23,7 +23,7 @@ fn main() {
 
     for i in &levels {
         let base = format!("battery-{i:02}");
-        let icon_path = format!("icons/{base}.ico");
+        let icon_path = format!("icons/bg/{base}.ico");
 
         // Write into resource file
         writeln!(rc_file, "{base} ICON \"{icon_path}\"").unwrap();
@@ -32,15 +32,15 @@ fn main() {
         writeln!(rs_file, "    \"{base}\",").unwrap();
 
         let base_chg = format!("{base}-charging");
-        let icon_path_chg = format!("icons/{base}-charging.ico");
+        let icon_path_chg = format!("icons/bg/{base}-charging.ico");
         writeln!(rc_file, "{base_chg} ICON \"{icon_path_chg}\"").unwrap();
         writeln!(rs_file, "    \"{base_chg}\",").unwrap();
     }
 
-    writeln!(rc_file, "battery-none ICON \"icons/battery-none.ico\"").unwrap();
+    writeln!(rc_file, "battery-none ICON \"icons/bg/battery-none.ico\"").unwrap();
     writeln!(
         rc_file,
-        "battery-plugged ICON \"icons/battery-plugged.ico\""
+        "battery-plugged ICON \"icons/bg/battery-plugged.ico\""
     )
     .unwrap();
     writeln!(rs_file, "    \"battery-none\",").unwrap();
