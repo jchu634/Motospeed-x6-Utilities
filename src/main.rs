@@ -1,4 +1,5 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
+use notify_rust::Notification;
 use rusb::{Context, UsbContext};
 use std::fs;
 use std::str::FromStr;
@@ -6,6 +7,15 @@ use std::sync::{Arc, Mutex, mpsc};
 use std::thread;
 use std::time::Duration;
 use tray_item::{IconSource, TrayItem};
+
+#[cfg(target_os = "windows")]
+use windows_registry::CURRENT_USER;
+
+// AUMID (Application User Model Id)
+const APP_ID: &str = "jchu634.x6batteryutils";
+
+// display name
+const APP_NAME: &str = "X6 Battery Utility";
 
 // Include generated icon name static arrays
 include!(concat!(env!("OUT_DIR"), "/icon_names.rs"));
@@ -94,18 +104,30 @@ fn get_battery_level() -> i16 {
         }
     };
 
-    /* Linux Specific
-    if let Ok(true) = handle.kernel_driver_active(INTERFACE_NUMBER) {
-        if let Err(e) = handle.detach_kernel_driver(INTERFACE_NUMBER) {
-            eprintln!("Failed to detach kernel driver: {}", e);
-            return;
+    #[cfg(target_os = "linux")]
+    let driver_was_active = match handle.kernel_driver_active(INTERFACE_NUMBER) {
+        Ok(active) => {
+            if active {
+                if let Err(e) = handle.detach_kernel_driver(INTERFACE_NUMBER) {
+                    eprintln!("Failed to detach kernel driver: {}", e);
+                    return -1;
+                }
+                println!("Detached kernel driver");
+            }
+            active
         }
-        println!("Detached kernel driver");
-    }
-    */
+        Err(e) => {
+            eprintln!("Failed to check kernel driver active status: {}", e);
+            return -1;
+        }
+    };
 
     if let Err(e) = handle.claim_interface(INTERFACE_NUMBER) {
         eprintln!("Failed to claim interface {}: {}", INTERFACE_NUMBER, e);
+        #[cfg(target_os = "linux")]
+        if driver_was_active {
+            let _ = handle.attach_kernel_driver(INTERFACE_NUMBER);
+        }
         return -1;
     }
 
@@ -127,6 +149,10 @@ fn get_battery_level() -> i16 {
     ) {
         eprintln!("SET_REPORT failed: {}", e);
         let _ = handle.release_interface(INTERFACE_NUMBER);
+        #[cfg(target_os = "linux")]
+        if driver_was_active {
+            let _ = handle.attach_kernel_driver(INTERFACE_NUMBER);
+        }
         return -1;
     }
 
@@ -138,6 +164,11 @@ fn get_battery_level() -> i16 {
                     if len > BATTERY_OFFSET {
                         let battery = buf[BATTERY_OFFSET] as i16;
                         let _ = handle.release_interface(INTERFACE_NUMBER);
+                        #[cfg(target_os = "linux")]
+                        if driver_was_active {
+                            let _ = handle.attach_kernel_driver(INTERFACE_NUMBER);
+                        }
+
                         println!("Battery level: {}%", battery);
                         return battery;
                     } else {
@@ -157,6 +188,10 @@ fn get_battery_level() -> i16 {
 
     eprintln!("Failed to retrieve battery level.");
     let _ = handle.release_interface(INTERFACE_NUMBER);
+    #[cfg(target_os = "linux")]
+    if driver_was_active {
+        let _ = handle.attach_kernel_driver(INTERFACE_NUMBER);
+    }
     return -1;
 }
 
@@ -164,12 +199,14 @@ fn get_battery_level() -> i16 {
 struct Config {
     duration: Duration,
     variant: IconVariant,
+    battery_warning_level: i16,
 }
 
 fn read_config() -> Config {
     let mut config = Config {
         duration: Duration::from_secs(60),
         variant: IconVariant::Bg,
+        battery_warning_level: 10,
     };
 
     let contents = match fs::read_to_string("config.txt") {
@@ -193,6 +230,11 @@ fn read_config() -> Config {
         if let Some(v) = line.strip_prefix("variant =") {
             if let Ok(variant) = v.trim().parse::<IconVariant>() {
                 config.variant = variant;
+            }
+        }
+        if let Some(v) = line.strip_prefix("battery_warning_level =") {
+            if let Ok(battery_level) = v.trim().parse::<i16>() {
+                config.battery_warning_level = battery_level.clamp(0, 99);
             }
         }
     }
@@ -244,10 +286,28 @@ fn icon_for_level(level: i16, variant: IconVariant) -> &'static str {
     }
 }
 
+#[cfg(target_os = "windows")]
+fn init_registry() -> windows_registry::Result<()> {
+    let icon_path = std::env::current_exe()?
+        .parent()
+        .expect("executable path should have a parent")
+        .join("resources")
+        .join("icon.png");
+
+    let key = CURRENT_USER.create(format!(r"SOFTWARE\Classes\AppUserModelId\{APP_ID}"))?;
+    key.set_string("DisplayName", APP_NAME)?;
+    key.set_string("IconBackgroundColor", "0")?;
+    key.set_hstring("IconUri", &icon_path.as_path().into())
+}
+
 fn main() {
     let config = read_config();
     let poll_timeout = config.duration;
+    let battery_warning_level = config.battery_warning_level;
     let icon_variant = Arc::new(Mutex::new(config.variant));
+
+    #[cfg(target_os = "windows")]
+    let _ = init_registry();
 
     let initial_icon = {
         let icon = *icon_variant.lock().unwrap();
@@ -256,10 +316,11 @@ fn main() {
             IconVariant::NoBg => "nobg-battery-00",
         }
     };
+    let mut has_battery_warning_played = false;
 
-    let mut tray = TrayItem::new("X6 Battery Util", IconSource::Resource(initial_icon)).unwrap();
+    let mut tray = TrayItem::new(APP_NAME, IconSource::Resource(initial_icon)).unwrap();
 
-    tray.add_label("X6 Battery Utility").unwrap();
+    tray.add_label(APP_NAME).unwrap();
 
     let (tx, rx) = mpsc::sync_channel(1);
 
@@ -328,6 +389,31 @@ fn main() {
                 let icon = icon_for_level(level, variant);
                 tray.set_icon(IconSource::Resource(icon)).unwrap();
 
+                if 0 <= level
+                    && level <= battery_warning_level
+                    && has_battery_warning_played == false
+                {
+                    #[cfg(target_os = "windows")]
+                    let _ = Notification::new()
+                        .summary("X6 Battery is Low")
+                        .app_id(APP_ID)
+                        .body(
+                            format!(r"Your mouse's battery is less than {battery_warning_level}%")
+                                .as_str(),
+                        )
+                        .show();
+                    #[cfg(not(target_os = "windows"))]
+                    let _ = Notification::new()
+                        .summary("X6 Battery is Low")
+                        .body(
+                            format!(r"Your mouse's battery is less than {battery_warning_level}%")
+                                .as_str(),
+                        )
+                        .show();
+
+                    has_battery_warning_played = true;
+                }
+
                 tooltip_text.clear();
                 match level {
                     -2 => tooltip_text.push_str("Device plugged in"),
@@ -336,6 +422,9 @@ fn main() {
                         use std::fmt::Write as _;
                         let shown = if level >= 128 { level - 128 } else { level };
                         let _ = write!(tooltip_text, "Battery: {}%", shown.clamp(0, 99));
+                        if level > battery_warning_level {
+                            has_battery_warning_played = false;
+                        }
                     }
                     _ => tooltip_text.push_str("Unknown battery state"),
                 }

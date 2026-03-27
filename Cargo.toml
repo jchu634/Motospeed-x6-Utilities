@@ -1,11 +1,15 @@
 [package]
 name = "Motospeed-x6-Utilities"
-version = "1.1.0"
+version = "1.1.1"
 edition = "2024"
 
 [dependencies]
+notify-rust = "4.12.0"
 rusb = "0.9.4"
 tray-item = "0.10.0"
 
 [build-dependencies]
 embed-resource = "2.3"
+
+[target.'cfg(windows)'.dependencies]
+windows-registry = "0.6.1"

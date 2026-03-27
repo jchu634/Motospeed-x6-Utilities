@@ -15,7 +15,7 @@ fn write_variant_entries(
         rs_file,
         "pub const ICON_NAMES_{}: [&str; {}] = [",
         variant.to_uppercase(),
-        levels.len() * 2 + 2
+        (levels.len() * 2 + 2)
     )?;
 
     for i in &levels {
@@ -72,6 +72,9 @@ fn main() {
         .expect("Failed writing bg variant icon entries");
     write_variant_entries(&mut rc_file, &mut rs_file, "nobg")
         .expect("Failed writing nobg variant icon entries");
+
+    // Primary application icon (resource id 1) used by Windows for the executable icon.
+    writeln!(rc_file, "1 ICON \"icons/icon.ico\"").expect("Failed writing primary app icon entry");
 
     // Compile and embed a single RC file containing both variants.
     embed_resource::compile(rc_path, embed_resource::NONE);
