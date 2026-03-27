@@ -105,16 +105,29 @@ fn get_battery_level() -> i16 {
     };
 
     #[cfg(target_os = "linux")]
-    if let Ok(true) = handle.kernel_driver_active(INTERFACE_NUMBER) {
-        if let Err(e) = handle.detach_kernel_driver(INTERFACE_NUMBER) {
-            eprintln!("Failed to detach kernel driver: {}", e);
+    let driver_was_active = match handle.kernel_driver_active(INTERFACE_NUMBER) {
+        Ok(active) => {
+            if active {
+                if let Err(e) = handle.detach_kernel_driver(INTERFACE_NUMBER) {
+                    eprintln!("Failed to detach kernel driver: {}", e);
+                    return -1;
+                }
+                println!("Detached kernel driver");
+            }
+            active
+        }
+        Err(e) => {
+            eprintln!("Failed to check kernel driver active status: {}", e);
             return -1;
         }
-        println!("Detached kernel driver");
-    }
+    };
 
     if let Err(e) = handle.claim_interface(INTERFACE_NUMBER) {
         eprintln!("Failed to claim interface {}: {}", INTERFACE_NUMBER, e);
+        #[cfg(target_os = "linux")]
+        if driver_was_active {
+            let _ = handle.attach_kernel_driver(INTERFACE_NUMBER);
+        }
         return -1;
     }
 
@@ -136,6 +149,10 @@ fn get_battery_level() -> i16 {
     ) {
         eprintln!("SET_REPORT failed: {}", e);
         let _ = handle.release_interface(INTERFACE_NUMBER);
+        #[cfg(target_os = "linux")]
+        if driver_was_active {
+            let _ = handle.attach_kernel_driver(INTERFACE_NUMBER);
+        }
         return -1;
     }
 
@@ -147,6 +164,10 @@ fn get_battery_level() -> i16 {
                     if len > BATTERY_OFFSET {
                         let battery = buf[BATTERY_OFFSET] as i16;
                         let _ = handle.release_interface(INTERFACE_NUMBER);
+                        #[cfg(target_os = "linux")]
+                        if driver_was_active {
+                            let _ = handle.attach_kernel_driver(INTERFACE_NUMBER);
+                        }
 
                         println!("Battery level: {}%", battery);
                         return battery;
@@ -167,6 +188,10 @@ fn get_battery_level() -> i16 {
 
     eprintln!("Failed to retrieve battery level.");
     let _ = handle.release_interface(INTERFACE_NUMBER);
+    #[cfg(target_os = "linux")]
+    if driver_was_active {
+        let _ = handle.attach_kernel_driver(INTERFACE_NUMBER);
+    }
     return -1;
 }
 
@@ -387,8 +412,6 @@ fn main() {
                         .show();
 
                     has_battery_warning_played = true;
-                } else {
-                    has_battery_warning_played = false;
                 }
 
                 tooltip_text.clear();
