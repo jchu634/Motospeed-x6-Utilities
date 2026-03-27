@@ -209,7 +209,7 @@ fn read_config() -> Config {
         }
         if let Some(v) = line.strip_prefix("battery_warning_level =") {
             if let Ok(battery_level) = v.trim().parse::<i16>() {
-                config.battery_warning_level = battery_level;
+                config.battery_warning_level = battery_level.clamp(0, 99);
             }
         }
     }
