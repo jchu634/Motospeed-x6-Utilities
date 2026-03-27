@@ -6,6 +6,12 @@ Cross-platform system tray application which shows the battery level, (polled ev
 - Note, has only been tested on Windows.
 - I do not have any devices to test Linux + MacOS, but I don't see any reason why it shouldn't work.
 
+#### Configuration
+You can configure some settings in the battery utility by adding a config.txt file.
+- `polltimeout = ___` Will set the polling interval in seconds for checking the battery level 
+- `variant = ___` Will set the default icon theme (Bg, NoBg)
+- `battery_warning_level = ___` Will change the percentage at which the utility warns you of low battery
+
 ### WebHID configurator
 Cross-platform webHID configuration site that lets you modify your mouse settings.
 - Note does not support macros.
