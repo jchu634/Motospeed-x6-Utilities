@@ -293,9 +293,9 @@ fn main() {
     };
     let mut has_battery_warning_played = false;
 
-    let mut tray = TrayItem::new("X6 Battery Util", IconSource::Resource(initial_icon)).unwrap();
+    let mut tray = TrayItem::new(APP_NAME, IconSource::Resource(initial_icon)).unwrap();
 
-    tray.add_label("X6 Battery Utility").unwrap();
+    tray.add_label(APP_NAME).unwrap();
 
     let (tx, rx) = mpsc::sync_channel(1);
 
