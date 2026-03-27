@@ -364,7 +364,7 @@ export function App() {
     }
   }
   function remapKey(Key: number, Feature: number, FeatureCode: number) {
-    const report = new Uint8Array(60) // Pad to 20 bytes
+    const report = new Uint8Array(60) // Pad to 60 bytes
 
     const payload = [
       0x52,
