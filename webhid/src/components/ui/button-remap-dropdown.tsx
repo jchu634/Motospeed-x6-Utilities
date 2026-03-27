@@ -12,6 +12,65 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 
+const FEATURES = {
+  MOUSE: 0x01,
+  MULTIMEDIA: 0x03,
+  DPI: 0x05,
+  RGB: 0x06,
+  SYSTEM_SHORTCUT: 0x08,
+  DISABLE: 0x09,
+} as const
+
+const MOUSE_CODES = {
+  LEFT_CLICK: 0x010000,
+  RIGHT_CLICK: 0x020000,
+  MIDDLE_CLICK: 0x040000,
+  DOUBLE_CLICK: 0x800000,
+  FORWARD: 0x080000,
+  BACKWARDS: 0x100000,
+  SCROLL_UP: 0x000200,
+  SCROLL_DOWN: 0x00fe00,
+  SCROLL_LEFT: 0x0000fe,
+  SCROLL_RIGHT: 0x000002,
+} as const
+
+const DPI_CODES = {
+  LOOP: 0x010000,
+  INCREASE: 0x020000,
+  DECREASE: 0x030000,
+} as const
+
+const MULTIMEDIA_CODES = {
+  VOLUME_UP: 0xe90000,
+  VOLUME_DOWN: 0xea0000,
+  MUTE: 0xe20000,
+  PLAY_PAUSE: 0xcd0000,
+  NEXT_TRACK: 0xb50000,
+  PREVIOUS_TRACK: 0xb60000,
+  STOP: 0xb70000,
+  OPEN_PLAYER: 0x830100,
+} as const
+
+const SYSTEM_SHORTCUT_CODES = {
+  SCREEN_BRIGHTNESS_UP: 0x0c6f00,
+  SCREEN_BRIGHTNESS_DOWN: 0x0c7000,
+  SWITCH_APPLICATION: 0x07042b,
+  REFRESH: 0x07003e,
+  CUT: 0x07011b,
+  COPY: 0x070106,
+  PASTE: 0x070119,
+} as const
+
+const RGB_CODES = {
+  CHANGE_EFFECT: 0x010000,
+  SPEED_SWITCH: 0x020000,
+  COLOUR_SWITCH: 0x030000,
+  BRIGHTNESS_UP: 0x040000,
+  BRIGHTNESS_DOWN: 0x050000,
+} as const
+
+const DISABLE_CODE = 0x000000
+
 type ButtonRemapDropdownProps = {
   keyId: number
   label: string
@@ -35,37 +94,77 @@ export function ButtonRemapDropdown({
           <DropdownMenuSubTrigger>Mouse Options</DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x01, 0x010000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.MOUSE, MOUSE_CODES.LEFT_CLICK)
+                }
+              >
                 Left-Click
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x01, 0x020000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.MOUSE, MOUSE_CODES.RIGHT_CLICK)
+                }
+              >
                 Right-Click
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x01, 0x040000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.MOUSE, MOUSE_CODES.MIDDLE_CLICK)
+                }
+              >
                 Middle-Click
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x01, 0x800000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.MOUSE, MOUSE_CODES.DOUBLE_CLICK)
+                }
+              >
                 Double Click
               </DropdownMenuItem>
 
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x01, 0x080000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.MOUSE, MOUSE_CODES.FORWARD)
+                }
+              >
                 Mouse Forward
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x01, 0x100000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.MOUSE, MOUSE_CODES.BACKWARDS)
+                }
+              >
                 Mouse Backwards
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x01, 0x000200)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.MOUSE, MOUSE_CODES.SCROLL_UP)
+                }
+              >
                 Scroll Up
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x01, 0x00fe00)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.MOUSE, MOUSE_CODES.SCROLL_DOWN)
+                }
+              >
                 Scroll Down
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x01, 0x0000fe)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.MOUSE, MOUSE_CODES.SCROLL_LEFT)
+                }
+              >
                 Scroll Left
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x01, 0x000002)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.MOUSE, MOUSE_CODES.SCROLL_RIGHT)
+                }
+              >
                 Scroll Right
               </DropdownMenuItem>
             </DropdownMenuSubContent>
@@ -76,13 +175,23 @@ export function ButtonRemapDropdown({
           <DropdownMenuSubTrigger>DPI Options</DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x05, 0x010000)}>
+              <DropdownMenuItem
+                onClick={() => remapKey(keyId, FEATURES.DPI, DPI_CODES.LOOP)}
+              >
                 DPI Loop
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x05, 0x020000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.DPI, DPI_CODES.INCREASE)
+                }
+              >
                 DPI +
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x05, 0x030000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.DPI, DPI_CODES.DECREASE)
+                }
+              >
                 DPI -
               </DropdownMenuItem>
             </DropdownMenuSubContent>
@@ -93,30 +202,86 @@ export function ButtonRemapDropdown({
           <DropdownMenuSubTrigger>Multimedia Options</DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x03, 0xe90000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(
+                    keyId,
+                    FEATURES.MULTIMEDIA,
+                    MULTIMEDIA_CODES.VOLUME_UP
+                  )
+                }
+              >
                 Volume +
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x03, 0xea0000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(
+                    keyId,
+                    FEATURES.MULTIMEDIA,
+                    MULTIMEDIA_CODES.VOLUME_DOWN
+                  )
+                }
+              >
                 Volume -
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x03, 0xe20000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.MULTIMEDIA, MULTIMEDIA_CODES.MUTE)
+                }
+              >
                 Mute
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x03, 0xcd0000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(
+                    keyId,
+                    FEATURES.MULTIMEDIA,
+                    MULTIMEDIA_CODES.PLAY_PAUSE
+                  )
+                }
+              >
                 Play/Pause
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x03, 0xb50000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(
+                    keyId,
+                    FEATURES.MULTIMEDIA,
+                    MULTIMEDIA_CODES.NEXT_TRACK
+                  )
+                }
+              >
                 Next Track
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x03, 0xb60000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(
+                    keyId,
+                    FEATURES.MULTIMEDIA,
+                    MULTIMEDIA_CODES.PREVIOUS_TRACK
+                  )
+                }
+              >
                 Previous Track
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x03, 0xb70000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.MULTIMEDIA, MULTIMEDIA_CODES.STOP)
+                }
+              >
                 Stop
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x03, 0x830100)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(
+                    keyId,
+                    FEATURES.MULTIMEDIA,
+                    MULTIMEDIA_CODES.OPEN_PLAYER
+                  )
+                }
+              >
                 Open Player
               </DropdownMenuItem>
             </DropdownMenuSubContent>
@@ -124,30 +289,88 @@ export function ButtonRemapDropdown({
         </DropdownMenuSub>
 
         <DropdownMenuSub>
-          <DropdownMenuSubTrigger>System Shortcut Options</DropdownMenuSubTrigger>
+          <DropdownMenuSubTrigger>
+            System Shortcut Options
+          </DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x08, 0x0c6f00)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(
+                    keyId,
+                    FEATURES.SYSTEM_SHORTCUT,
+                    SYSTEM_SHORTCUT_CODES.SCREEN_BRIGHTNESS_UP
+                  )
+                }
+              >
                 Screen Brightness +
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x08, 0x0c7000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(
+                    keyId,
+                    FEATURES.SYSTEM_SHORTCUT,
+                    SYSTEM_SHORTCUT_CODES.SCREEN_BRIGHTNESS_DOWN
+                  )
+                }
+              >
                 Screen Brightness -
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x08, 0x07042b)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(
+                    keyId,
+                    FEATURES.SYSTEM_SHORTCUT,
+                    SYSTEM_SHORTCUT_CODES.SWITCH_APPLICATION
+                  )
+                }
+              >
                 Switch Application
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x08, 0x07003e)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(
+                    keyId,
+                    FEATURES.SYSTEM_SHORTCUT,
+                    SYSTEM_SHORTCUT_CODES.REFRESH
+                  )
+                }
+              >
                 Refresh
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x08, 0x07011b)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(
+                    keyId,
+                    FEATURES.SYSTEM_SHORTCUT,
+                    SYSTEM_SHORTCUT_CODES.CUT
+                  )
+                }
+              >
                 Cut
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x08, 0x070106)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(
+                    keyId,
+                    FEATURES.SYSTEM_SHORTCUT,
+                    SYSTEM_SHORTCUT_CODES.COPY
+                  )
+                }
+              >
                 Copy
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x08, 0x070119)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(
+                    keyId,
+                    FEATURES.SYSTEM_SHORTCUT,
+                    SYSTEM_SHORTCUT_CODES.PASTE
+                  )
+                }
+              >
                 Paste
               </DropdownMenuItem>
             </DropdownMenuSubContent>
@@ -160,20 +383,40 @@ export function ButtonRemapDropdown({
           <DropdownMenuSubTrigger>RGB Options</DropdownMenuSubTrigger>
           <DropdownMenuPortal>
             <DropdownMenuSubContent>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x06, 0x010000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.RGB, RGB_CODES.CHANGE_EFFECT)
+                }
+              >
                 Change Effect
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x06, 0x020000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.RGB, RGB_CODES.SPEED_SWITCH)
+                }
+              >
                 Speed Switch
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x06, 0x030000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.RGB, RGB_CODES.COLOUR_SWITCH)
+                }
+              >
                 Colour Switch
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x06, 0x040000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.RGB, RGB_CODES.BRIGHTNESS_UP)
+                }
+              >
                 Brightness +
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => remapKey(keyId, 0x06, 0x050000)}>
+              <DropdownMenuItem
+                onClick={() =>
+                  remapKey(keyId, FEATURES.RGB, RGB_CODES.BRIGHTNESS_DOWN)
+                }
+              >
                 Brightness -
               </DropdownMenuItem>
             </DropdownMenuSubContent>
@@ -181,7 +424,9 @@ export function ButtonRemapDropdown({
         </DropdownMenuSub>
 
         <DropdownMenuGroup>
-          <DropdownMenuItem onClick={() => remapKey(keyId, 0x09, 0x000000)}>
+          <DropdownMenuItem
+            onClick={() => remapKey(keyId, FEATURES.DISABLE, DISABLE_CODE)}
+          >
             Disable
           </DropdownMenuItem>
         </DropdownMenuGroup>
