@@ -364,7 +364,10 @@ fn main() {
                 let icon = icon_for_level(level, variant);
                 tray.set_icon(IconSource::Resource(icon)).unwrap();
 
-                if level <= battery_warning_level && has_battery_warning_played == false {
+                if 0 <= level
+                    && level <= battery_warning_level
+                    && has_battery_warning_played == false
+                {
                     #[cfg(target_os = "windows")]
                     let _ = Notification::new()
                         .summary("X6 Battery is Low")
@@ -382,6 +385,7 @@ fn main() {
                                 .as_str(),
                         )
                         .show();
+
                     has_battery_warning_played = true;
                 } else {
                     has_battery_warning_played = false;
