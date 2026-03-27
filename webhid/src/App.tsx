@@ -859,7 +859,7 @@ export function App() {
               <Card className="p-4">
                 Keyboard key rebinding and Macro Functionality Coming Very
                 Soon... <br />
-                (Its a lot of work + I'm kinda burnt out on this project.)
+                (It's a lot of work + I'm kinda burnt out on this project.)
               </Card>
             </div>
           </div>
