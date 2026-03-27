@@ -263,7 +263,11 @@ fn icon_for_level(level: i16, variant: IconVariant) -> &'static str {
 
 #[cfg(target_os = "windows")]
 fn init_registry() -> windows_registry::Result<()> {
-    let icon_path = std::env::current_dir()?.join(r"resources\icon.png");
+    let icon_path = std::env::current_exe()?
+        .parent()
+        .expect("executable path should have a parent")
+        .join("resources")
+        .join("icon.png");
 
     let key = CURRENT_USER.create(format!(r"SOFTWARE\Classes\AppUserModelId\{APP_ID}"))?;
     key.set_string("DisplayName", APP_NAME)?;
