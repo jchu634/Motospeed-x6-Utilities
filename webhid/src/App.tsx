@@ -12,6 +12,7 @@ import {
 import { RgbColorPicker, HexColorInput } from "react-colorful"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { Slider } from "@/components/ui/slider"
+import { ButtonRemapDropdown } from "@/components/ui/button-remap-dropdown"
 import { NumberField } from "@/components/ui/number-field"
 import { Toggle } from "@/components/ui/toggle"
 import MouseSVG from "@/components/mouse"
@@ -362,6 +363,24 @@ export function App() {
       sendReport(devicesRef.current[0], 0xb5, report)
     }
   }
+  function remapKey(Key: number, Feature: number, FeatureCode: number) {
+    const report = new Uint8Array(60) // Pad to 60 bytes
+
+    const payload = [
+      0x52,
+      Key,
+      0x00,
+      Feature,
+      (FeatureCode >> 16) & 0xff,
+      (FeatureCode >> 8) & 0xff,
+      FeatureCode & 0xff,
+    ].slice(0, 60)
+    report.set(payload)
+    // console.log(dataViewToHexString(report))
+    if (devicesRef.current != null) {
+      sendReport(devicesRef.current[0], 0xb3, report)
+    }
+  }
 
   return (
     <div className="flex min-h-svh p-6">
@@ -396,7 +415,40 @@ export function App() {
               deviceConnected ? "" : "pointer-events-none opacity-20"
             )}
           >
-            <MouseSVG />
+            <div className="relative flex">
+              <MouseSVG />
+              <ButtonRemapDropdown
+                keyId={0x00}
+                label="Left Click"
+                className="absolute top-10 right-90"
+                remapKey={remapKey}
+              />
+              <ButtonRemapDropdown
+                keyId={0x01}
+                label="Right Click"
+                className="absolute top-10 right-55"
+                remapKey={remapKey}
+              />
+              <ButtonRemapDropdown
+                keyId={0x02}
+                label="Middle Click"
+                className="absolute top-35 right-50"
+                remapKey={remapKey}
+              />
+              {/* Use Right positioning instead of left to stop text overflow issues*/}
+              <ButtonRemapDropdown
+                keyId={0x03}
+                label="Side Button 1"
+                className="absolute top-70 right-125"
+                remapKey={remapKey}
+              />
+              <ButtonRemapDropdown
+                keyId={0x04}
+                label="Side Button 2"
+                className="absolute top-85 right-125"
+                remapKey={remapKey}
+              />
+            </div>
             <div className="space-y-4">
               <div className="flex h-fit space-x-4">
                 <div className="space-y-4">
@@ -805,8 +857,9 @@ export function App() {
                 </div>
               </Card>
               <Card className="p-4">
-                Key rebinding and Macro Functionality Coming Soon... (Its a lot
-                of work I don't wanna do.)
+                Keyboard key rebinding and Macro Functionality Coming Very
+                Soon... <br />
+                (It's a lot of work + I'm kinda burnt out on this project.)
               </Card>
             </div>
           </div>
