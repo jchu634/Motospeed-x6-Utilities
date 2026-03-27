@@ -1,21 +1,15 @@
-# React + TypeScript + Vite + shadcn/ui
+## X6-WebHid Utility
+This is a WebHID configuration tool for the Motospeed X6 Mouse.\
+It is written in Vite+React.\
+If you want to understand the HID Commands see the blogposts [here.](https://www.keshuac.com/blog/00012.motospeed-x6-2)
 
-This is a template for a new Vite project with React, TypeScript, and shadcn/ui.
 
-## Adding components
-
-To add components to your app, run the following command:
-
+### Development
+Install dependencies
 ```bash
-npx shadcn@latest add button
+pnpm install
 ```
-
-This will place the ui components in the `src/components` directory.
-
-## Using components
-
-To use the components in your app, import them as follows:
-
-```tsx
-import { Button } from "@/components/ui/button"
+Run app
+```bash
+pnpm run dev
 ```
